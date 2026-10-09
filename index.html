@@ -146,7 +146,7 @@ input[type=text]{font:16px var(--fb);color:var(--ink);background:var(--bg);borde
 <div class="sheet" id="sJoin" hidden><div class="panel" role="dialog" aria-labelledby="sJoinT">
   <h3 id="sJoinT">Apuntarme <button class="x" data-close aria-label="Cerrar">×</button></h3>
   <p id="joinHint">Escribe tu nombre como te conocen en el grupo.</p>
-  <label class="field"><span>Nombre</span><input type="text" id="fName" maxlength="40" autocomplete="name" autocapitalize="words" enterkeyhint="send" placeholder="Ej.: Juan García"></label>
+  <label class="field"><span>Nombre</span><input type="text" id="fName" maxlength="40" autocomplete="off" autocorrect="off" spellcheck="false" autocapitalize="words" enterkeyhint="send" placeholder="Ej.: Juan García"></label>
   <div class="err" id="fErr" role="alert"></div>
   <button class="btn primary" id="fSend" type="button">Apuntarme</button>
 </div></div>
@@ -349,8 +349,7 @@ const sheet = $("sJoin");
 sheet.addEventListener("click", e => { if (e.target === sheet || e.target.closest("[data-close]")) sheet.hidden = true; });
 document.addEventListener("keydown", e => { if (e.key === "Escape") sheet.hidden = true; });
 $("bJoin").onclick = () => {
-  const yo = store.get("yo", "");   // la versión anterior guardaba {nombre, sexo}
-  $("fName").value = typeof yo === "string" ? yo : (yo && yo.nombre) || ""; $("fErr").textContent = "";
+  $("fName").value = ""; $("fErr").textContent = "";   // siempre vacío: cada uno escribe su nombre
   $("joinHint").textContent = D.inscritos.length >= POOL.max_jugadores
     ? "La lista está completa: entrarás en reservas y pasarás a la lista por orden si alguien se borra."
     : "Escribe tu nombre como te conocen en el grupo.";
@@ -363,7 +362,7 @@ $("fSend").onclick = async () => {
   $("fSend").disabled = true; $("fSend").textContent = "Apuntando…"; $("fErr").textContent = "";
   try {
     const r = await api.apuntarse(POOL, nombre);
-    const m = mias(); m[r.id] = r.token; store.set("mias", m); store.set("yo", nombre);
+    const m = mias(); m[r.id] = r.token; store.set("mias", m);
     await cargar();
     const pos = D.inscritos.findIndex(i => i.id === r.id);
     sheet.hidden = true;
@@ -391,6 +390,7 @@ async function quitar(i){
 
 /* ---------- arranque ---------- */
 let api = null;
+try { localStorage.removeItem("pool.yo"); } catch(e) {}
 async function cargar(){ D = await api.datos(POOL); vistaPool(); }
 async function start(){
   if (!DEMO && !window.supabase) { $("title").textContent = "No se ha podido cargar"; $("main").replaceChildren(h("div", {class: "note warn"}, errText("red"))); return; }
