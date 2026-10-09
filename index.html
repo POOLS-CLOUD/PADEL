@@ -263,7 +263,7 @@ function dispositivo(){
   return d;
 }
 const ERRORES = {
-  YA_APUNTADO: "Desde este móvil ya hay alguien apuntado en esta pool. Cada persona se apunta desde su propio móvil; si compartís móvil, pídeselo al organizador.",
+  YA_APUNTADO: "Desde este móvil ya se han apuntado 2 personas en esta pool, que es el máximo. Para apuntar a alguien más, pídeselo al organizador.",
   POOL_CERRADA: "La inscripción está cerrada.",
   POOL_COMPLETA: "La lista y las reservas están completas.",
   NOMBRE_REPETIDO: "Ya hay alguien apuntado con ese nombre. Añade tu apellido o una inicial.",
@@ -357,11 +357,13 @@ function vistaPool(){
       h("b", {}, m.tipo === "alta" ? "＋" : "－"), h("span", {}, `${m.nombre} ${m.tipo === "alta" ? "se apunta" : "se borra"}`), h("span", {class: "tm"}, hora(m.created_at)))))));
 
   const abierta = p.estado === "abierta", lleno = D.inscritos.length >= max + (p.max_reservas ?? 0);
-  const yaApuntado = D.inscritos.some(i => mine[i.id]);   // una inscripción por dispositivo
+  const MAX_DISP = 2, desdeAqui = D.inscritos.filter(i => mine[i.id]).length;   // máximo 2 inscripciones por dispositivo
+  const yaApuntado = desdeAqui >= MAX_DISP;
   $("actions").hidden = !abierta;
   main.className = "wrap" + (abierta ? "" : " noBar");
   $("bJoin").disabled = lleno || yaApuntado;
-  $("bJoin").textContent = yaApuntado ? "Ya estás apuntado desde este móvil" : lleno ? "Lista y reservas completas" : lista.length >= max ? "Apuntarme a reservas" : "Apuntarme";
+  $("bJoin").textContent = yaApuntado ? "Ya hay 2 apuntados desde este móvil" : lleno ? "Lista y reservas completas"
+    : desdeAqui ? (lista.length >= max ? "Apuntar a otra persona (reservas)" : "Apuntar a otra persona") : lista.length >= max ? "Apuntarme a reservas" : "Apuntarme";
 }
 
 /* ---------- apuntarse / borrarse ---------- */
@@ -372,6 +374,7 @@ $("bJoin").onclick = () => {
   $("fName").value = ""; $("fErr").textContent = "";   // siempre vacío: cada uno escribe su nombre
   $("joinHint").textContent = D.inscritos.length >= POOL.max_jugadores
     ? "La lista está completa: entrarás en reservas y pasarás a la lista por orden si alguien se borra."
+    : D.inscritos.some(i => mias()[i.id]) ? "Escribe el nombre de la otra persona que quieres apuntar (máximo 2 desde este móvil)."
     : "Escribe tu nombre como te conocen en el grupo.";
   sheet.hidden = false; setTimeout(() => $("fName").focus(), 60);
 };
