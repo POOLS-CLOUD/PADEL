@@ -207,8 +207,14 @@ function supabaseBackend(){
     escuchar(pool, cb){
       sb.channel("pool-" + pool.id)
         .on("postgres_changes", {event:"*", schema:"public", table:"inscripciones", filter:"pool_id=eq." + pool.id}, cb)
-        .on("postgres_changes", {event:"*", schema:"public", table:"pools", filter:"id=eq." + pool.id}, cb)
+        .on("postgres_changes", {event:"*", schema:"public", table:"pools"}, cb)   // incluye el borrado de la pool
         .on("postgres_changes", {event:"*", schema:"public", table:"resultados", filter:"pool_id=eq." + pool.id}, cb)
+        .subscribe();
+    },
+    escucharListado(cb){
+      sb.channel("listado")
+        .on("postgres_changes", {event:"*", schema:"public", table:"pools"}, cb)
+        .on("postgres_changes", {event:"*", schema:"public", table:"inscripciones"}, cb)
         .subscribe();
     },
     async apuntarse(pool, nombre){ return ok(await sb.rpc("apuntarse", {p_pool: pool.id, p_nombre: nombre})); },
@@ -231,6 +237,7 @@ function demoBackend(){
     async pool(c){ return P.find(p => p.codigo === c) || null; },
     async datos(p){ return {inscritos: p.ins.slice(), movimientos: p.ins.map(i => ({tipo:"alta", nombre:i.nombre, created_at:i.created_at})).reverse(), resultados: p.estado === "sorteada" ? res : []}; },
     escuchar(p, f){ cb = f; },
+    escucharListado(){},
     async apuntarse(p, nombre){
       if (p.ins.some(i => i.nombre.toLowerCase() === nombre.toLowerCase())) throw {message: "NOMBRE_REPETIDO"};
       const r = {id: "n" + Date.now(), nombre, created_at: new Date().toISOString()}; p.ins.push(r); setTimeout(cb, 50); return {id: r.id, token: "demo"};
@@ -270,7 +277,7 @@ async function vistaListado(){
   };
   const main = $("main"); main.replaceChildren();
   main.append(h("section", {}, h("h2", {}, "Próximas"),
-    prox.length ? h("div", {class: "pools"}, prox.map(card)) : h("div", {class: "note"}, "Ahora mismo no hay ninguna pool abierta. En cuanto el organizador cree la siguiente, aparecerá aquí.")));
+    prox.length ? h("div", {class: "pools"}, prox.map(card)) : h("div", {class: "note"}, "Ahora mismo no hay ninguna pool. En cuanto el organizador cree la siguiente, aparecerá aquí.")));
   if (ant.length) main.append(h("section", {}, h("h2", {}, "Anteriores", h("small", {}, "resultados de los sorteos")), h("div", {class: "pools"}, ant.map(card))));
   main.className = "wrap noBar";
 }
@@ -279,6 +286,13 @@ async function vistaListado(){
 let POOL = null, D = {inscritos: [], movimientos: [], resultados: []};
 const mias = () => store.get("mias", {});
 
+function vistaBorrada(){
+  $("actions").hidden = true; $("bar").hidden = true; $("stats").replaceChildren(); $("notas").hidden = true;
+  $("eyebrow").textContent = "Pádel"; $("title").textContent = "Esta pool ya no existe"; $("meta").textContent = "";
+  document.title = "Pools de Pádel";
+  $("main").className = "wrap noBar";
+  $("main").replaceChildren(h("div", {class: "note"}, "El organizador la ha borrado. ", h("a", {href: DEMO ? "./?demo" : "./"}, "Ver las pools disponibles")));
+}
 function vistaPool(){
   const p = POOL, max = p.max_jugadores, lista = D.inscritos.slice(0, max), reservas = D.inscritos.slice(max);
   document.title = p.titulo;
@@ -382,7 +396,14 @@ async function start(){
   if (!DEMO && !window.supabase) { $("title").textContent = "No se ha podido cargar"; $("main").replaceChildren(h("div", {class: "note warn"}, errText("red"))); return; }
   api = DEMO ? demoBackend() : supabaseBackend();
   try {
-    if (!CODIGO) { await vistaListado(); return; }
+    if (!CODIGO) {
+      await vistaListado();
+      let t = null;
+      const refrescar = () => { clearTimeout(t); t = setTimeout(() => vistaListado().catch(() => {}), 300); };
+      api.escucharListado(refrescar);
+      document.addEventListener("visibilitychange", () => { if (!document.hidden) refrescar(); });
+      return;
+    }
     POOL = await api.pool(CODIGO);
     if (!POOL) {
       $("back").hidden = false; $("title").textContent = "Pool no encontrada";
@@ -391,8 +412,13 @@ async function start(){
     }
     await cargar();
     let t = null;
-    api.escuchar(POOL, () => { clearTimeout(t); t = setTimeout(async () => { POOL = await api.pool(POOL.codigo) || POOL; await cargar(); }, 250); });
-    document.addEventListener("visibilitychange", () => { if (!document.hidden) cargar().catch(() => {}); });
+    const refrescar = async () => {
+      const p = await api.pool(POOL.codigo);
+      if (!p) { vistaBorrada(); return; }
+      POOL = p; await cargar();
+    };
+    api.escuchar(POOL, () => { clearTimeout(t); t = setTimeout(() => refrescar().catch(() => {}), 250); });
+    document.addEventListener("visibilitychange", () => { if (!document.hidden) refrescar().catch(() => {}); });
   } catch(e) {
     $("title").textContent = "No se ha podido cargar";
     $("main").replaceChildren(h("div", {class: "note warn"}, errText(e)));
