@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Pools de Pádel y Tenis</title>
+<title>Próximas competiciones</title>
 <meta name="description" content="Pools de pádel: elige la tuya y apúntate.">
 <meta name="theme-color" content="#13233A">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -276,9 +276,11 @@ const link = codigo => "?" + (DEMO ? "demo&" : "") + "pool=" + codigo;
 /* ================= LISTADO DE POOLS ================= */
 async function vistaListado(){
   $("back").hidden = true;
-  $("eyebrow").textContent = DEMO ? "Vista de ejemplo · datos inventados" : "Pádel";
-  $("title").textContent = "Pools y partidos";
-  $("meta").textContent = "Elige tu pool o partido y apúntate.";
+  $("eyebrow").textContent = DEMO ? "Vista de ejemplo · datos inventados" : "";
+  $("eyebrow").hidden = !DEMO;
+  $("title").textContent = "Próximas competiciones";
+  $("meta").textContent = "Elige tu competición y apúntate.";
+  document.title = "Próximas competiciones";
   const pools = await api.pools(), hoy = hoyIso();
   const prox = pools.filter(p => p.fecha >= hoy).sort((a, b) => a.fecha.localeCompare(b.fecha));
   const ant = pools.filter(p => p.fecha < hoy).slice(0, 8);
@@ -294,7 +296,7 @@ async function vistaListado(){
       h("div", {class: "mini"}, h("i", {style: `width:${lleno / p.max_jugadores * 100}%`})));
   };
   const main = $("main"); main.replaceChildren();
-  main.append(h("section", {}, h("h2", {}, "Próximas"),
+  main.append(h("section", {},
     prox.length ? h("div", {class: "pools"}, prox.map(card)) : h("div", {class: "note"}, "Ahora mismo no hay ninguna pool. En cuanto el organizador cree la siguiente, aparecerá aquí.")));
   if (ant.length) main.append(h("section", {}, h("h2", {}, "Anteriores", h("small", {}, "resultados de los sorteos")), h("div", {class: "pools"}, ant.map(card))));
   main.className = "wrap noBar";
@@ -306,7 +308,7 @@ const mias = () => store.get("mias", {});
 
 function vistaBorrada(){
   $("actions").hidden = true; $("bar").hidden = true; $("stats").replaceChildren(); $("notas").hidden = true;
-  $("eyebrow").textContent = "Pádel"; $("title").textContent = "Esta pool ya no existe"; $("meta").textContent = "";
+  $("eyebrow").hidden = true; $("title").textContent = "Esta pool ya no existe"; $("meta").textContent = "";
   document.title = "Pools de Pádel";
   $("main").className = "wrap noBar";
   $("main").replaceChildren(h("div", {class: "note"}, "El organizador la ha borrado. ", h("a", {href: DEMO ? "./?demo" : "./"}, "Ver las pools disponibles")));
@@ -315,6 +317,7 @@ function vistaPool(){
   const p = POOL, max = p.max_jugadores, lista = D.inscritos.slice(0, max), reservas = D.inscritos.slice(max);
   document.title = p.titulo;
   $("back").hidden = false; $("back").href = DEMO ? "./?demo" : "./";
+  $("eyebrow").hidden = false;
   $("eyebrow").textContent = DEMO ? "Vista de ejemplo · datos inventados" : (DEPORTE[p.deporte || "padel"] + " · " + fecha(p.fecha).toLocaleDateString("es-ES", {weekday: "long", day: "numeric", month: "long"}));
   $("title").textContent = p.titulo;
   $("meta").textContent = [p.horario, p.importe && p.importe.toLowerCase(), p.club && "📍 " + p.club].filter(Boolean).join(" · ");
