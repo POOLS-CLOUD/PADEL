@@ -331,14 +331,8 @@ function vistaPool(){
   const free = [];
   for (let k = lista.length; k < max; k++) free.push(h("li", {class: "free"}, h("span", {class: "n"}, (k + 1) + "."), h("span", {class: "nm"}, "Libre")));
   main.append(h("section", {}, h("h2", {}, "La lista", h("small", {}, "por orden de inscripción")), h("ol", {class: "list"}, lista.map((i, k) => row(i, k + 1)), free)));
-  // reservas: huecos libres visibles y botón para apuntarse en cuanto la lista está completa
-  const maxRes = p.max_reservas ?? 0, abiertaRes = p.estado === "abierta" && lista.length >= max && reservas.length < maxRes;
-  const libresRes = [];
-  if (p.estado === "abierta") for (let k = reservas.length; k < maxRes; k++) libresRes.push(h("li", {class: "free"}, h("span", {class: "n"}, "R" + (k + 1) + "."), h("span", {class: "nm"}, "Libre")));
-  if (maxRes) main.append(h("section", {}, h("h2", {}, "Reservas", h("small", {}, `${reservas.length} / ${maxRes} · entran por orden si alguien se borra`)),
-    reservas.length || libresRes.length ? h("ol", {class: "list"}, reservas.map((i, k) => row(i, "R" + (k + 1))), libresRes) : h("div", {class: "list"}, h("div", {class: "empty"}, "Nadie en reservas.")),
-    abiertaRes ? h("button", {class: "btn primary", type: "button", style: "margin-top:10px", onclick: () => $("bJoin").click()}, "Apuntarme a reservas") : null,
-    p.estado === "abierta" && lista.length < max ? h("p", {style: "color:var(--muted);font-size:14px;margin:8px 2px 0"}, "Las reservas se abren cuando se completen las " + max + " plazas.") : null));
+  main.append(h("section", {}, h("h2", {}, "Reservas", h("small", {}, "entran por orden si alguien se borra")),
+    reservas.length ? h("ol", {class: "list"}, reservas.map((i, k) => row(i, "R" + (k + 1)))) : h("div", {class: "list"}, h("div", {class: "empty"}, "Nadie en reservas."))));
   if (D.movimientos.length) main.append(h("section", {}, h("h2", {}, "Movimientos"),
     h("ul", {class: "moves"}, D.movimientos.slice(0, 15).map(m => h("li", {class: m.tipo},
       h("b", {}, m.tipo === "alta" ? "＋" : "－"), h("span", {}, `${m.nombre} ${m.tipo === "alta" ? "se apunta" : "se borra"}`), h("span", {class: "tm"}, hora(m.created_at)))))));
@@ -347,8 +341,7 @@ function vistaPool(){
   $("actions").hidden = !abierta;
   main.className = "wrap" + (abierta ? "" : " noBar");
   $("bJoin").disabled = lleno;
-  const quedanRes = (p.max_reservas ?? 0) - reservas.length;
-  $("bJoin").textContent = lleno ? "Lista y reservas completas" : lista.length >= max ? `Apuntarme a reservas (quedan ${quedanRes})` : "Apuntarme";
+  $("bJoin").textContent = lleno ? "Lista y reservas completas" : lista.length >= max ? "Apuntarme a reservas" : "Apuntarme";
 }
 
 /* ---------- apuntarse / borrarse ---------- */
