@@ -95,6 +95,17 @@ h2 small{font:500 13px var(--fb);color:var(--muted)}
 
 footer{color:var(--muted);font-size:13px;text-align:center}
 
+/* parejas fijas: una fila por pareja con dos huecos, uno al lado del otro */
+.pairs{display:grid;gap:8px}
+.pairrow{display:grid;grid-template-columns:auto 1fr 1fr;gap:6px;align-items:stretch}
+.pairrow .pl{align-self:center;color:var(--muted);font-weight:600;font-size:13px;min-width:2.6em;font-variant-numeric:tabular-nums}
+.slot{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:8px 10px;min-height:52px;display:flex;flex-direction:column;justify-content:center;gap:2px;min-width:0}
+.slot .nm{font-weight:500;overflow-wrap:anywhere;font-size:15px}
+.slot.libre{border-style:dashed;color:var(--muted);font-style:italic;font-size:14px}
+.slot .acts{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.slot .del{padding:2px 0;min-height:0;font-size:13px}
+.slotbtn{border:1px dashed var(--accent);background:var(--accent-soft);color:var(--accent);border-radius:12px;min-height:52px;font:600 14px var(--fb);cursor:pointer;padding:6px 8px}
+
 /* barra fija inferior */
 .actions{position:fixed;left:0;right:0;bottom:0;background:var(--card);border-top:1px solid var(--line);z-index:5;padding-top:10px;padding-bottom:calc(10px + var(--sab))}
 .btn{display:block;width:100%;border:0;border-radius:14px;padding:15px 14px;min-height:52px;font:600 16px var(--fb);cursor:pointer;background:var(--mint);color:var(--ink);text-align:center;text-decoration:none}
@@ -203,7 +214,8 @@ function supabaseBackend(){
     async pool(codigo){ return ok(await sb.from("pools").select("*").eq("codigo", codigo).limit(1))[0] || null; },
     async datos(pool){
       const [a, b, c] = await Promise.all([
-        sb.from("inscripciones").select("id,nombre,created_at").eq("pool_id", pool.id).order("created_at"),
+        sb.from("inscripciones").select("id,nombre,created_at,posicion").eq("pool_id", pool.id).order("created_at")
+          .then(r => r.error && /posicion/.test(r.error.message || "") ? sb.from("inscripciones").select("id,nombre,created_at").eq("pool_id", pool.id).order("created_at") : r),
         sb.from("movimientos").select("tipo,nombre,created_at").eq("pool_id", pool.id).order("created_at", {ascending:false}).limit(30),
         sb.from("resultados").select("pista,pareja,nombre").eq("pool_id", pool.id).order("pista").order("pareja"),
       ]);
@@ -222,7 +234,8 @@ function supabaseBackend(){
         .on("postgres_changes", {event:"*", schema:"public", table:"inscripciones"}, cb)
         .subscribe();
     },
-    async apuntarse(pool, nombre){
+    async apuntarse(pool, nombre, posicion){
+      if (posicion != null) return ok(await sb.rpc("apuntarse", {p_pool: pool.id, p_nombre: nombre, p_dispositivo: dispositivo(), p_posicion: posicion}));
       let r = await sb.rpc("apuntarse", {p_pool: pool.id, p_nombre: nombre, p_dispositivo: dispositivo()});
       // si la base de datos aún no tiene el límite por dispositivo, se usa la función anterior
       if (r.error && (r.error.code === "PGRST202" || /p_dispositivo/.test(r.error.message || ""))) r = await sb.rpc("apuntarse", {p_pool: pool.id, p_nombre: nombre});
@@ -239,6 +252,9 @@ function demoBackend(){
   const mk = (codigo, titulo, f, estado, n, max) => ({id: codigo, codigo, titulo, horario: "21:30-23:00", importe: "6€ PERSONA", fecha: f, max_jugadores: max, max_reservas: 10, estado,
     ins: N.slice(0, n).map((x, i) => ({id: codigo + i, nombre: x, created_at: new Date(t0 + i * 36e5).toISOString()}))});
   const P = [Object.assign(mk("DEMO2", "PARTIDO JUEVES 15 OCT", "2026-10-15", "abierta", 6, 8), {notas: "Traed bolas nuevas", deporte: "tenis", club: "Club de Raqueta de Benalmádena"}), mk("DEMO", "POOL MARTES 13 OCT", "2026-10-13", "abierta", 17, 20), mk("DEMO0", "POOL MARTES 6 OCT", "2026-10-06", "sorteada", 8, 8)];
+  const fijas = Object.assign(mk("DEMO3", "POOL DEL VIERNES", "2026-10-16", "abierta", 0, 8), {parejas_fijas: true});
+  fijas.ins = [["Juan", 0], ["Ana", 1], ["Luis", 2], ["Pedro", 4], ["Sara", 5]].map(([n, pos], i) => ({id: "f" + i, nombre: n, posicion: pos, created_at: new Date(t0 + i * 36e5).toISOString()}));
+  P.push(fijas);
   const res = [];
   P[2].ins.forEach((x, i) => res.push({pista: Math.floor(i / 4) + 1, pareja: Math.floor(i / 2) % 2 + 1, nombre: x.nombre}));
   let cb = null;
@@ -248,9 +264,10 @@ function demoBackend(){
     async datos(p){ return {inscritos: p.ins.slice(), movimientos: p.ins.map(i => ({tipo:"alta", nombre:i.nombre, created_at:i.created_at})).reverse(), resultados: p.estado === "sorteada" ? res : []}; },
     escuchar(p, f){ cb = f; },
     escucharListado(){},
-    async apuntarse(p, nombre){
+    async apuntarse(p, nombre, posicion){
       if (p.ins.some(i => i.nombre.toLowerCase() === nombre.toLowerCase())) throw {message: "NOMBRE_REPETIDO"};
-      const r = {id: "n" + Date.now(), nombre, created_at: new Date().toISOString()}; p.ins.push(r); setTimeout(cb, 50); return {id: r.id, token: "demo"};
+      if (posicion != null && p.ins.some(i => i.posicion === posicion)) throw {message: "HUECO_OCUPADO"};
+      const r = {id: "n" + Date.now(), nombre, posicion: posicion ?? null, created_at: new Date().toISOString()}; p.ins.push(r); setTimeout(cb, 50); return {id: r.id, token: "demo"};
     },
     async borrarse(id){ P.forEach(p => p.ins = p.ins.filter(i => i.id !== id)); setTimeout(cb, 50); return true; },
   };
@@ -263,6 +280,8 @@ function dispositivo(){
   return d;
 }
 const ERRORES = {
+  HUECO_OCUPADO: "Ese hueco lo acaba de ocupar otra persona. Elige otro.",
+  HUECO_NO_VALIDO: "Ese hueco no existe. Recarga la página y elige otro.",
   YA_APUNTADO: "Desde este móvil ya se han apuntado 2 personas en esta pool, que es el máximo. Para apuntar a alguien más, pídeselo al organizador.",
   POOL_CERRADA: "La inscripción está cerrada.",
   POOL_COMPLETA: "La lista y las reservas están completas.",
@@ -313,8 +332,12 @@ function vistaBorrada(){
   $("main").className = "wrap noBar";
   $("main").replaceChildren(h("div", {class: "note"}, "El organizador la ha borrado. ", h("a", {href: DEMO ? "./?demo" : "./"}, "Ver las pools disponibles")));
 }
+let slotElegido = null;   // hueco elegido al apuntarse en un evento de parejas fijas
 function vistaPool(){
-  const p = POOL, max = p.max_jugadores, lista = D.inscritos.slice(0, max), reservas = D.inscritos.slice(max);
+  const p = POOL, max = p.max_jugadores, fijas = !!p.parejas_fijas;
+  // con parejas fijas cada uno ocupa un hueco (posición); si no, por orden de inscripción
+  const lista = fijas ? D.inscritos.filter(i => i.posicion != null && i.posicion < max) : D.inscritos.slice(0, max);
+  const reservas = fijas ? D.inscritos.filter(i => i.posicion != null && i.posicion >= max) : D.inscritos.slice(max);
   document.title = p.titulo;
   $("back").hidden = false; $("back").href = DEMO ? "./?demo" : "./";
   $("eyebrow").hidden = false;
@@ -350,20 +373,39 @@ function vistaPool(){
     main.append(h("div", {class: "note warn"}, "La inscripción está cerrada. El sorteo aparecerá aquí en cuanto el organizador lo haga."));
   }
 
-  const free = [];
-  for (let k = lista.length; k < max; k++) free.push(h("li", {class: "free"}, h("span", {class: "n"}, (k + 1) + "."), h("span", {class: "nm"}, "Libre")));
-  main.append(h("section", {}, h("h2", {}, "La lista", h("small", {}, "por orden de inscripción")), h("ol", {class: "list"}, lista.map((i, k) => row(i, k + 1)), free)));
-  main.append(h("section", {}, h("h2", {}, "Reservas", h("small", {}, "entran por orden si alguien se borra")),
-    reservas.length ? h("ol", {class: "list"}, reservas.map((i, k) => row(i, "R" + (k + 1)))) : h("div", {class: "list"}, h("div", {class: "empty"}, "Nadie en reservas."))));
+  const MAX_DISP = 2, desdeAqui = D.inscritos.filter(i => mine[i.id]).length;   // máximo 2 inscripciones por dispositivo
+  if (fijas) {
+    // dos columnas: cada fila es una pareja; en un hueco libre te puedes apuntar al lado de tu compañero
+    const porPos = new Map(D.inscritos.filter(i => i.posicion != null).map(i => [i.posicion, i]));
+    const puede = p.estado === "abierta" && desdeAqui < MAX_DISP;
+    const slot = pos => {
+      const i = porPos.get(pos);
+      if (i) return h("div", {class: "slot"}, h("span", {class: "nm"}, i.nombre),
+        mine[i.id] ? h("span", {class: "acts"}, h("span", {class: "me"}, "TÚ"), puedeBorrar ? h("button", {class: "del", type: "button", onclick: () => quitar(i)}, "Borrarme") : null) : null);
+      return puede ? h("button", {class: "slotbtn", type: "button", onclick: () => abrirHueco(pos)}, "＋ Apuntarme aquí") : h("div", {class: "slot libre"}, "Libre");
+    };
+    const filas = (desde, hasta, pref) => { const r = []; for (let k = desde; k < hasta; k += 2) r.push(h("div", {class: "pairrow"}, h("span", {class: "pl"}, pref + (Math.floor((k - desde) / 2) + 1)), slot(k), slot(k + 1))); return r; };
+    main.append(h("section", {}, h("h2", {}, "Las parejas", h("small", {}, "ponte al lado de tu compañero")),
+      p.estado === "abierta" ? h("p", {style: "color:var(--muted);font-size:14px;margin:0 2px 10px"}, "Toca «Apuntarme aquí» en un hueco libre. Si tu pareja ya está apuntada, ocupa el hueco de su lado.") : null,
+      h("div", {class: "pairs"}, filas(0, max, "P"))));
+    const maxRes = p.max_reservas ?? 0;
+    if (maxRes >= 2) main.append(h("section", {}, h("h2", {}, "Reservas", h("small", {}, "parejas de reserva")), h("div", {class: "pairs"}, filas(max, max + maxRes - maxRes % 2, "R"))));
+  } else {
+    const free = [];
+    for (let k = lista.length; k < max; k++) free.push(h("li", {class: "free"}, h("span", {class: "n"}, (k + 1) + "."), h("span", {class: "nm"}, "Libre")));
+    main.append(h("section", {}, h("h2", {}, "La lista", h("small", {}, "por orden de inscripción")), h("ol", {class: "list"}, lista.map((i, k) => row(i, k + 1)), free)));
+    main.append(h("section", {}, h("h2", {}, "Reservas", h("small", {}, "entran por orden si alguien se borra")),
+      reservas.length ? h("ol", {class: "list"}, reservas.map((i, k) => row(i, "R" + (k + 1)))) : h("div", {class: "list"}, h("div", {class: "empty"}, "Nadie en reservas."))));
+  }
   if (D.movimientos.length) main.append(h("section", {}, h("h2", {}, "Movimientos"),
     h("ul", {class: "moves"}, D.movimientos.slice(0, 15).map(m => h("li", {class: m.tipo},
       h("b", {}, m.tipo === "alta" ? "＋" : "－"), h("span", {}, `${m.nombre} ${m.tipo === "alta" ? "se apunta" : "se borra"}`), h("span", {class: "tm"}, hora(m.created_at)))))));
 
   const abierta = p.estado === "abierta", lleno = D.inscritos.length >= max + (p.max_reservas ?? 0);
-  const MAX_DISP = 2, desdeAqui = D.inscritos.filter(i => mine[i.id]).length;   // máximo 2 inscripciones por dispositivo
   const yaApuntado = desdeAqui >= MAX_DISP;
-  $("actions").hidden = !abierta;
-  main.className = "wrap" + (abierta ? "" : " noBar");
+  // con parejas fijas se apunta tocando un hueco: no hace falta la barra de abajo
+  $("actions").hidden = !abierta || fijas;
+  main.className = "wrap" + (abierta && !fijas ? "" : " noBar");
   $("bJoin").disabled = lleno || yaApuntado;
   $("bJoin").textContent = yaApuntado ? "Ya hay 2 apuntados desde este móvil" : lleno ? "Lista y reservas completas"
     : desdeAqui ? (lista.length >= max ? "Apuntar a otra persona (reservas)" : "Apuntar a otra persona") : lista.length >= max ? "Apuntarme a reservas" : "Apuntarme";
@@ -373,7 +415,15 @@ function vistaPool(){
 const sheet = $("sJoin");
 sheet.addEventListener("click", e => { if (e.target === sheet || e.target.closest("[data-close]")) sheet.hidden = true; });
 document.addEventListener("keydown", e => { if (e.key === "Escape") sheet.hidden = true; });
+function abrirHueco(pos){
+  slotElegido = pos;
+  const max = POOL.max_jugadores, res = pos >= max, n = Math.floor((res ? pos - max : pos) / 2) + 1;
+  $("fName").value = ""; $("fErr").textContent = "";
+  $("joinHint").textContent = `${res ? "Pareja de reserva" : "Pareja"} ${n}. Escribe tu nombre como te conocen en el grupo.`;
+  sheet.hidden = false; setTimeout(() => $("fName").focus(), 60);
+}
 $("bJoin").onclick = () => {
+  slotElegido = null;
   $("fName").value = ""; $("fErr").textContent = "";   // siempre vacío: cada uno escribe su nombre
   $("joinHint").textContent = D.inscritos.length >= POOL.max_jugadores
     ? "La lista está completa: entrarás en reservas y pasarás a la lista por orden si alguien se borra."
@@ -387,12 +437,13 @@ $("fSend").onclick = async () => {
   if (!nombre) { $("fErr").textContent = "Escribe tu nombre."; return; }
   $("fSend").disabled = true; $("fSend").textContent = "Apuntando…"; $("fErr").textContent = "";
   try {
-    const r = await api.apuntarse(POOL, nombre);
+    const r = await api.apuntarse(POOL, nombre, POOL.parejas_fijas ? slotElegido : null);
     const m = mias(); m[r.id] = r.token; store.set("mias", m);
     await cargar();
     const pos = D.inscritos.findIndex(i => i.id === r.id);
     sheet.hidden = true;
-    toast(pos >= POOL.max_jugadores ? `Estás en reservas (R${pos - POOL.max_jugadores + 1})` : `¡Hecho! Estás el ${pos + 1}.º de la lista`);
+    if (POOL.parejas_fijas && slotElegido != null) { const mx = POOL.max_jugadores, rs = slotElegido >= mx; toast(`¡Hecho! Estás en la ${rs ? "pareja de reserva" : "pareja"} ${Math.floor((rs ? slotElegido - mx : slotElegido) / 2) + 1}`); }
+    else toast(pos >= POOL.max_jugadores ? `Estás en reservas (R${pos - POOL.max_jugadores + 1})` : `¡Hecho! Estás el ${pos + 1}.º de la lista`);
   } catch(e) { $("fErr").textContent = errText(e); }
   $("fSend").disabled = false; $("fSend").textContent = "Apuntarme";
 };
