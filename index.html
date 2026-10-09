@@ -326,7 +326,8 @@ const sheet = $("sJoin");
 sheet.addEventListener("click", e => { if (e.target === sheet || e.target.closest("[data-close]")) sheet.hidden = true; });
 document.addEventListener("keydown", e => { if (e.key === "Escape") sheet.hidden = true; });
 $("bJoin").onclick = () => {
-  $("fName").value = store.get("yo", ""); $("fErr").textContent = "";
+  const yo = store.get("yo", "");   // la versión anterior guardaba {nombre, sexo}
+  $("fName").value = typeof yo === "string" ? yo : (yo && yo.nombre) || ""; $("fErr").textContent = "";
   $("joinHint").textContent = D.inscritos.length >= POOL.max_jugadores
     ? "La lista está completa: entrarás en reservas y pasarás a la lista por orden si alguien se borra."
     : "Escribe tu nombre como te conocen en el grupo.";
