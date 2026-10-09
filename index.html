@@ -179,7 +179,7 @@ const hora = iso => { const d = new Date(iso);
 const fecha = iso => { const [y, m, d] = iso.split("-").map(Number); return new Date(y, m - 1, d); };
 const hoyIso = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; };
 // Estado que se enseña al público: un sorteo oculto se muestra como «Inscripción cerrada»
-const estadoPublico = p => p.estado === "sorteada" && p.mostrar_sorteo === false ? "cerrada" : p.estado;
+const estadoPublico = p => p.estado === "sorteada" ? "cerrada" : p.estado;
 const DEPORTE = {padel: "🎾 Pádel", tenis: "🎾 Tenis"};
 const ESTADO = {abierta: ["Inscripción abierta", "open"], cerrada: ["Inscripción cerrada", "closed"], sorteada: ["Sorteo hecho", "drawn"]};
 
@@ -196,7 +196,9 @@ function supabaseBackend(){
       const pools = ok(await sb.from("pools").select("*").order("fecha", {ascending:false}).order("created_at", {ascending:false}).limit(30));
       const ids = pools.map(p => p.id), cuenta = {};
       if (ids.length) ok(await sb.from("inscripciones").select("pool_id").in("pool_id", ids)).forEach(r => cuenta[r.pool_id] = (cuenta[r.pool_id] || 0) + 1);
-      return pools.map(p => ({...p, apuntados: cuenta[p.id] || 0}));
+      const conSorteo = new Set();
+      if (ids.length) ok(await sb.from("resultados").select("pool_id").in("pool_id", ids)).forEach(r => conSorteo.add(r.pool_id));
+      return pools.map(p => ({...p, apuntados: cuenta[p.id] || 0, sorteado: conSorteo.has(p.id) && p.mostrar_sorteo !== false}));
     },
     async pool(codigo){ return ok(await sb.from("pools").select("*").eq("codigo", codigo).limit(1))[0] || null; },
     async datos(pool){
@@ -241,7 +243,7 @@ function demoBackend(){
   P[2].ins.forEach((x, i) => res.push({pista: Math.floor(i / 4) + 1, pareja: Math.floor(i / 2) % 2 + 1, nombre: x.nombre}));
   let cb = null;
   return {
-    async pools(){ return P.map(p => ({...p, apuntados: p.ins.length})); },
+    async pools(){ return P.map(p => ({...p, apuntados: p.ins.length, sorteado: p.estado === "sorteada"})); },
     async pool(c){ return P.find(p => p.codigo === c) || null; },
     async datos(p){ return {inscritos: p.ins.slice(), movimientos: p.ins.map(i => ({tipo:"alta", nombre:i.nombre, created_at:i.created_at})).reverse(), resultados: p.estado === "sorteada" ? res : []}; },
     escuchar(p, f){ cb = f; },
@@ -287,7 +289,7 @@ async function vistaListado(){
       h("div", {class: "m"}, [DEPORTE[p.deporte || "padel"], fecha(p.fecha).toLocaleDateString("es-ES", {weekday: "long", day: "numeric", month: "long"}), p.horario, p.importe && p.importe.toLowerCase()].filter(Boolean).join(" · ")),
       p.club ? h("div", {class: "m"}, "📍 " + p.club) : null,
       p.notas ? h("div", {class: "nt"}, p.notas) : null,
-      h("div", {class: "row"}, h("span", {class: "tag " + est[1]}, est[0]), h("span", {class: "tag"}, `${lleno} / ${p.max_jugadores} jugadores`),
+      h("div", {class: "row"}, h("span", {class: "tag " + est[1]}, est[0]), p.sorteado ? h("span", {class: "tag drawn"}, "🎲 Sorteo hecho") : null, h("span", {class: "tag"}, `${lleno} / ${p.max_jugadores} jugadores`),
         lleno >= p.max_jugadores && p.estado === "abierta" ? h("span", {class: "tag open"}, "🟢 Completa") : null, res ? h("span", {class: "tag"}, `${res} en reservas`) : null),
       h("div", {class: "mini"}, h("i", {style: `width:${lleno / p.max_jugadores * 100}%`})));
   };
@@ -318,12 +320,13 @@ function vistaPool(){
   $("meta").textContent = [p.horario, p.importe && p.importe.toLowerCase(), p.club && "📍 " + p.club].filter(Boolean).join(" · ");
   $("notas").hidden = !p.notas; $("notas").textContent = p.notas || "";
   const ep = estadoPublico(p);
-  const est = ep === "sorteada" ? ["Sorteo hecho", "done"] : ep === "cerrada" ? ["Inscripción cerrada", "warn"] : lista.length >= max ? ["🟢 Pool completa", "ok"] : ["Inscripción abierta", ""];
+  const est = ep === "cerrada" ? ["Inscripción cerrada", "warn"] : lista.length >= max ? ["🟢 Pool completa", "ok"] : ["Inscripción abierta", ""];
   $("stats").replaceChildren(...[h("span", {class: "pill"}, `${lista.length} / ${max} jugadores`),
-    reservas.length ? h("span", {class: "pill"}, `${reservas.length} en reservas`) : null, h("span", {class: "pill " + est[1]}, est[0])].filter(Boolean));
+    reservas.length ? h("span", {class: "pill"}, `${reservas.length} en reservas`) : null, h("span", {class: "pill " + est[1]}, est[0]),
+    D.resultados.length ? h("span", {class: "pill done"}, "🎲 Sorteo hecho") : null].filter(Boolean));
   $("bar").hidden = false; $("barFill").style.width = Math.min(100, lista.length / max * 100) + "%";
 
-  const mine = mias(), puedeBorrar = p.estado !== "sorteada";
+  const mine = mias(), puedeBorrar = p.estado === "abierta";
   const row = (i, n) => h("li", {}, h("span", {class: "n"}, n + "."), h("span", {class: "nm"}, i.nombre),
     mine[i.id] ? h("span", {class: "me"}, "TÚ") : null,
     mine[i.id] && puedeBorrar ? h("button", {class: "del", type: "button", onclick: () => quitar(i)}, "Borrarme") : null);
@@ -340,11 +343,8 @@ function vistaPool(){
       (() => { const enPista = new Set(D.resultados.map(r => r.nombre.toLowerCase()));
         const sin = D.inscritos.filter(i => !enPista.has(i.nombre.toLowerCase())).map(i => i.nombre);
         return sin.length ? h("div", {class: "note", style: "margin-top:10px"}, `⏳ Sin pista: ${sin.join(", ")}`) : null; })()));
-  } else if (p.estado === "sorteada" && p.mostrar_sorteo === false) {
+  } else if (ep === "cerrada") {
     main.append(h("div", {class: "note warn"}, "La inscripción está cerrada. El sorteo aparecerá aquí en cuanto el organizador lo haga."));
-  } else if (p.estado === "sorteada" || p.estado === "cerrada") {
-    main.append(h("div", {class: p.estado === "cerrada" ? "note warn" : "note"}, p.estado === "cerrada"
-      ? "La inscripción está cerrada. El sorteo aparecerá aquí en cuanto el organizador lo haga." : "Esperando a que el organizador publique el sorteo."));
   }
 
   const free = [];
