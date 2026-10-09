@@ -217,7 +217,12 @@ function supabaseBackend(){
         .on("postgres_changes", {event:"*", schema:"public", table:"inscripciones"}, cb)
         .subscribe();
     },
-    async apuntarse(pool, nombre){ return ok(await sb.rpc("apuntarse", {p_pool: pool.id, p_nombre: nombre})); },
+    async apuntarse(pool, nombre){
+      let r = await sb.rpc("apuntarse", {p_pool: pool.id, p_nombre: nombre, p_dispositivo: dispositivo()});
+      // si la base de datos aún no tiene el límite por dispositivo, se usa la función anterior
+      if (r.error && (r.error.code === "PGRST202" || /p_dispositivo/.test(r.error.message || ""))) r = await sb.rpc("apuntarse", {p_pool: pool.id, p_nombre: nombre});
+      return ok(r);
+    },
     async borrarse(id, token){ return ok(await sb.rpc("borrarse", {p_id: id, p_token: token})); },
   };
 }
@@ -246,7 +251,14 @@ function demoBackend(){
   };
 }
 
+// Identificador propio de este móvil/ordenador (solo sirve para «una inscripción por dispositivo»)
+function dispositivo(){
+  let d = store.get("dispositivo", null);
+  if (!d) { d = (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2)); store.set("dispositivo", d); }
+  return d;
+}
 const ERRORES = {
+  YA_APUNTADO: "Desde este móvil ya hay alguien apuntado en esta pool. Cada persona se apunta desde su propio móvil; si compartís móvil, pídeselo al organizador.",
   POOL_CERRADA: "La inscripción está cerrada.",
   POOL_COMPLETA: "La lista y las reservas están completas.",
   NOMBRE_REPETIDO: "Ya hay alguien apuntado con ese nombre. Añade tu apellido o una inicial.",
@@ -340,10 +352,11 @@ function vistaPool(){
       h("b", {}, m.tipo === "alta" ? "＋" : "－"), h("span", {}, `${m.nombre} ${m.tipo === "alta" ? "se apunta" : "se borra"}`), h("span", {class: "tm"}, hora(m.created_at)))))));
 
   const abierta = p.estado === "abierta", lleno = D.inscritos.length >= max + (p.max_reservas ?? 0);
+  const yaApuntado = D.inscritos.some(i => mine[i.id]);   // una inscripción por dispositivo
   $("actions").hidden = !abierta;
   main.className = "wrap" + (abierta ? "" : " noBar");
-  $("bJoin").disabled = lleno;
-  $("bJoin").textContent = lleno ? "Lista y reservas completas" : lista.length >= max ? "Apuntarme a reservas" : "Apuntarme";
+  $("bJoin").disabled = lleno || yaApuntado;
+  $("bJoin").textContent = yaApuntado ? "Ya estás apuntado desde este móvil" : lleno ? "Lista y reservas completas" : lista.length >= max ? "Apuntarme a reservas" : "Apuntarme";
 }
 
 /* ---------- apuntarse / borrarse ---------- */
