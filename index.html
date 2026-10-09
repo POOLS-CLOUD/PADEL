@@ -310,7 +310,8 @@ async function vistaListado(){
       h("div", {class: "m"}, [DEPORTE[p.deporte || "padel"], fecha(p.fecha).toLocaleDateString("es-ES", {weekday: "long", day: "numeric", month: "long"}), p.horario, p.importe && p.importe.toLowerCase()].filter(Boolean).join(" · ")),
       p.club ? h("div", {class: "m"}, "📍 " + p.club) : null,
       p.notas ? h("div", {class: "nt"}, p.notas) : null,
-      h("div", {class: "row"}, h("span", {class: "tag " + est[1]}, est[0]), p.sorteado ? h("span", {class: "tag drawn"}, "🎲 Sorteo hecho") : null, h("span", {class: "tag"}, `${lleno} / ${p.max_jugadores} jugadores`),
+      h("div", {class: "row"}, h("span", {class: "tag " + est[1]}, est[0]), p.sorteado ? h("span", {class: "tag drawn"}, "🎲 Sorteo hecho") : null,
+        h("span", {class: "tag"}, (n => `🎾 ${n} pista${n === 1 ? "" : "s"}`)(Math.floor(p.max_jugadores / 4))), h("span", {class: "tag"}, `${lleno} / ${p.max_jugadores} jugadores`),
         lleno >= p.max_jugadores && p.estado === "abierta" ? h("span", {class: "tag open"}, "🟢 Completa") : null, res ? h("span", {class: "tag"}, `${res} en reservas`) : null),
       h("div", {class: "mini"}, h("i", {style: `width:${lleno / p.max_jugadores * 100}%`})));
   };
