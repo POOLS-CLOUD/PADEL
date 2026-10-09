@@ -40,6 +40,8 @@ header.top{background:var(--head);color:var(--head-ink);padding-top:calc(16px + 
 .eyebrow{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--head-muted);font-weight:600}
 h1{font:600 clamp(26px,7.5vw,34px)/1.12 var(--fd);margin:6px 0 4px;text-wrap:balance;overflow-wrap:anywhere}
 .meta{color:var(--head-muted);font-size:15px}
+.notas{color:var(--head-ink);font-size:14.5px;font-weight:500;white-space:pre-line;margin-top:8px;padding:8px 12px;border-radius:12px;background:rgba(255,255,255,.08);overflow-wrap:anywhere}
+.poolcard .nt{font-size:13.5px;color:var(--ink);margin-top:4px;white-space:pre-line;overflow-wrap:anywhere}
 .stats{display:flex;flex-wrap:wrap;gap:6px;margin-top:14px}
 .pill{display:inline-flex;align-items:center;border-radius:999px;padding:4px 10px;font-size:12.5px;font-weight:600;background:rgba(255,255,255,.13);font-variant-numeric:tabular-nums;white-space:nowrap}
 .pill.ok{background:var(--ok);color:#fff} .pill.warn{background:var(--warn);color:#fff} .pill.done{background:#7FB2F0;color:#0B1A2E}
@@ -127,6 +129,7 @@ input[type=text]{font:16px var(--fb);color:var(--ink);background:var(--bg);borde
   <div class="eyebrow" id="eyebrow">Pádel</div>
   <h1 id="title">Cargando…</h1>
   <div class="meta" id="meta"></div>
+  <div class="notas" id="notas" hidden></div>
   <div class="stats" id="stats"></div>
   <div class="bar" id="bar" hidden><i id="barFill" style="width:0"></i></div>
 </div></header>
@@ -219,7 +222,7 @@ function demoBackend(){
   const t0 = Date.now() - 36e5 * 20;
   const mk = (codigo, titulo, f, estado, n, max) => ({id: codigo, codigo, titulo, horario: "21:30-23:00", importe: "6€ PERSONA", fecha: f, max_jugadores: max, max_reservas: 10, estado,
     ins: N.slice(0, n).map((x, i) => ({id: codigo + i, nombre: x, created_at: new Date(t0 + i * 36e5).toISOString()}))});
-  const P = [mk("DEMO2", "POOL JUEVES 15 OCT", "2026-10-15", "abierta", 6, 8), mk("DEMO", "POOL MARTES 13 OCT", "2026-10-13", "abierta", 17, 20), mk("DEMO0", "POOL MARTES 6 OCT", "2026-10-06", "sorteada", 8, 8)];
+  const P = [Object.assign(mk("DEMO2", "POOL JUEVES 15 OCT", "2026-10-15", "abierta", 6, 8), {notas: "PÁDEL INDOOR · Traed bolas nuevas"}), mk("DEMO", "POOL MARTES 13 OCT", "2026-10-13", "abierta", 17, 20), mk("DEMO0", "POOL MARTES 6 OCT", "2026-10-06", "sorteada", 8, 8)];
   const res = [];
   P[2].ins.forEach((x, i) => res.push({pista: Math.floor(i / 4) + 1, pareja: Math.floor(i / 2) % 2 + 1, nombre: x.nombre}));
   let cb = null;
@@ -260,6 +263,7 @@ async function vistaListado(){
     return h("a", {class: "poolcard", href: link(p.codigo)},
       h("div", {class: "t"}, p.titulo), h("span", {class: "chev", "aria-hidden": "true"}, "›"),
       h("div", {class: "m"}, [fecha(p.fecha).toLocaleDateString("es-ES", {weekday: "long", day: "numeric", month: "long"}), p.horario, p.importe && p.importe.toLowerCase()].filter(Boolean).join(" · ")),
+      p.notas ? h("div", {class: "nt"}, p.notas) : null,
       h("div", {class: "row"}, h("span", {class: "tag " + est[1]}, est[0]), h("span", {class: "tag"}, `${lleno} / ${p.max_jugadores} jugadores`),
         lleno >= p.max_jugadores && p.estado === "abierta" ? h("span", {class: "tag open"}, "🟢 Completa") : null, res ? h("span", {class: "tag"}, `${res} en reservas`) : null),
       h("div", {class: "mini"}, h("i", {style: `width:${lleno / p.max_jugadores * 100}%`})));
@@ -282,6 +286,7 @@ function vistaPool(){
   $("eyebrow").textContent = DEMO ? "Vista de ejemplo · datos inventados" : fecha(p.fecha).toLocaleDateString("es-ES", {weekday: "long", day: "numeric", month: "long"});
   $("title").textContent = p.titulo;
   $("meta").textContent = [p.horario, p.importe && p.importe.toLowerCase()].filter(Boolean).join(" · ");
+  $("notas").hidden = !p.notas; $("notas").textContent = p.notas || "";
   const est = p.estado === "sorteada" ? ["Sorteo hecho", "done"] : p.estado === "cerrada" ? ["Inscripción cerrada", "warn"] : lista.length >= max ? ["🟢 Pool completa", "ok"] : ["Inscripción abierta", ""];
   $("stats").replaceChildren(...[h("span", {class: "pill"}, `${lista.length} / ${max} jugadores`),
     reservas.length ? h("span", {class: "pill"}, `${reservas.length} en reservas`) : null, h("span", {class: "pill " + est[1]}, est[0])].filter(Boolean));
