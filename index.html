@@ -1,0 +1,424 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Pool de Pádel</title>
+<meta name="description" content="Apúntate a la pool de pádel de la semana.">
+<meta name="theme-color" content="#11427D">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600&family=Inter:wght@400;500;600&display=swap">
+<style>
+/* Una columna estrecha: cabecera oscura con la pool, la lista numerada, reservas, movimientos y una barra de acciones fija abajo */
+:root{
+  --bg:#F0F2EF; --card:#FFFFFF; --mint:#E8EDE8; --ink:#1A1A18; --muted:#6F7069; --line:#DEE1DA;
+  --accent:#11427D; --accent-ink:#FFFFFF; --accent-soft:#E3EAF3; --head:#13233A; --head-ink:#F0F2EF;
+  --ok:#3F7A52; --ok-soft:#E2EFE5; --warn:#B0521F; --warn-soft:#F8E9DF; --man:#2C5DA8; --woman:#B23A7A;
+  --fd:"Playfair Display",Georgia,serif; --fb:"Inter",-apple-system,"Segoe UI",Roboto,sans-serif;
+}
+@media (prefers-color-scheme: dark){ :root{
+  --bg:#111412; --card:#1A1E1B; --mint:#202620; --ink:#ECEFEA; --muted:#9DA39A; --line:#2C332D;
+  --accent:#6FA3E6; --accent-ink:#0B1A2E; --accent-soft:#1A2738; --head:#0B1524; --head-ink:#ECEFEA;
+  --ok:#7CC492; --ok-soft:#1B2D21; --warn:#F0A070; --warn-soft:#33231A; --man:#86B0F0; --woman:#F08CC0; color-scheme:dark } }
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:15px/1.5 var(--fb);-webkit-font-smoothing:antialiased}
+.wrap{max-width:560px;margin:0 auto;padding-inline:16px}
+header.top{background:var(--head);color:var(--head-ink);padding:calc(18px + env(safe-area-inset-top)) 0 22px}
+.eyebrow{font-size:11px;letter-spacing:.14em;text-transform:uppercase;opacity:.7;font-weight:600}
+h1{font:600 30px/1.15 var(--fd);margin:6px 0 4px;text-wrap:balance}
+.meta{opacity:.8;font-size:14px}
+.stats{display:flex;flex-wrap:wrap;gap:6px;margin-top:14px}
+.pill{border-radius:999px;padding:4px 10px;font-size:12.5px;font-weight:600;background:rgba(255,255,255,.12);font-variant-numeric:tabular-nums}
+.pill.ok{background:var(--ok);color:#fff} .pill.warn{background:var(--warn);color:#fff}
+.bar{height:6px;border-radius:99px;background:rgba(255,255,255,.15);margin-top:14px;overflow:hidden}
+.bar i{display:block;height:100%;background:#7FB2F0;border-radius:99px;transition:width .4s}
+main{padding-block:18px 120px;display:grid;gap:22px}
+h2{font:600 20px var(--fd);margin:0 0 2px;display:flex;align-items:baseline;gap:10px}
+h2 small{font:500 12.5px var(--fb);color:var(--muted)}
+.list{list-style:none;margin:8px 0 0;padding:0;background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.list li{display:flex;align-items:center;gap:10px;padding:10px 14px;border-top:1px solid var(--line);min-height:46px}
+.list li:first-child{border-top:0}
+.n{width:1.8em;text-align:right;color:var(--muted);font-weight:600;font-variant-numeric:tabular-nums;flex:none}
+.nm{flex:1;min-width:0;overflow-wrap:anywhere;font-weight:500}
+.free .nm{color:var(--muted);font-weight:400;font-style:italic}
+.dot{width:8px;height:8px;border-radius:50%;flex:none} .dot.H{background:var(--man)} .dot.M{background:var(--woman)}
+.me{font-size:11px;font-weight:700;color:var(--accent);background:var(--accent-soft);border-radius:6px;padding:2px 6px}
+.del{border:0;background:transparent;color:var(--warn);font:600 13px var(--fb);padding:6px 4px;cursor:pointer}
+.empty{color:var(--muted);font-size:14px;padding:12px 14px}
+.moves{list-style:none;margin:8px 0 0;padding:0;font-size:14px;display:grid;gap:6px}
+.moves li{display:flex;gap:8px;align-items:baseline}
+.moves .t{color:var(--muted);font-size:12.5px;margin-left:auto;white-space:nowrap;font-variant-numeric:tabular-nums}
+.moves .alta b{color:var(--ok)} .moves .baja b{color:var(--warn)}
+.note{border-radius:12px;padding:12px 14px;font-size:14px;background:var(--mint)}
+.note.warn{background:var(--warn-soft);color:var(--warn)}
+footer{color:var(--muted);font-size:13px;text-align:center;padding-bottom:8px}
+footer button{border:0;background:none;color:var(--accent);font:600 13px var(--fb);cursor:pointer;text-decoration:underline}
+.actions{position:fixed;left:0;right:0;bottom:0;background:var(--card);border-top:1px solid var(--line);z-index:5;padding:10px 0 calc(10px + env(safe-area-inset-bottom))}
+.actions .wrap{display:grid;grid-template-columns:2fr 1fr 1fr;gap:8px}
+.btn{border:0;border-radius:12px;padding:13px 10px;font:600 15px var(--fb);cursor:pointer;background:var(--mint);color:var(--ink)}
+.btn.primary{background:var(--accent);color:var(--accent-ink)}
+.btn.wa{background:#1FA855;color:#fff}
+.btn:disabled{opacity:.45;cursor:default}
+.btn:focus-visible,.seg label:focus-within{outline:3px solid var(--accent);outline-offset:2px}
+.sheet{position:fixed;inset:0;z-index:10;background:rgba(10,14,20,.5);display:flex;align-items:flex-end;justify-content:center}
+.sheet[hidden]{display:none}
+.panel{background:var(--card);width:100%;max-width:560px;border-radius:20px 20px 0 0;padding:20px 16px calc(20px + env(safe-area-inset-bottom));max-height:88vh;overflow:auto}
+.panel h3{font:600 22px var(--fd);margin:0 0 4px;display:flex;justify-content:space-between;align-items:center}
+.x{border:0;background:none;font-size:26px;line-height:1;color:var(--muted);cursor:pointer;padding:0 4px}
+.panel p{margin:0 0 14px;color:var(--muted);font-size:14px}
+.field{display:grid;gap:6px;margin-bottom:14px}
+.field span{font-size:13px;font-weight:600}
+input[type=text]{font:16px var(--fb);color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:12px 14px;width:100%}
+.seg{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.seg label{display:flex;align-items:center;justify-content:center;gap:6px;padding:12px;border:1px solid var(--line);border-radius:12px;font-weight:600;cursor:pointer}
+.seg input{position:absolute;opacity:0;pointer-events:none}
+.seg label.sel.H{border-color:var(--man);color:var(--man);background:var(--accent-soft)}
+.seg label.sel.M{border-color:var(--woman);color:var(--woman);background:color-mix(in srgb,var(--woman) 12%,transparent)}
+.stack{display:grid;gap:8px}
+.err{color:var(--warn);font-size:14px;margin:-4px 0 12px;min-height:1px}
+pre.msg{white-space:pre-wrap;font:14px/1.5 var(--fb);background:var(--bg);border-radius:12px;padding:12px 14px;margin:0 0 14px;max-height:40vh;overflow:auto}
+.court{margin-bottom:12px} .court b{display:block;font-family:var(--fd);font-size:17px;margin-bottom:2px}
+.toast{position:fixed;left:50%;bottom:96px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:9px 16px;border-radius:999px;font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:20}
+.toast.on{opacity:1}
+.loading{color:var(--muted);text-align:center;padding:40px 0}
+@media (prefers-reduced-motion: reduce){ *{transition:none!important} }
+</style>
+</head>
+<body>
+
+<header class="top"><div class="wrap">
+  <div class="eyebrow" id="eyebrow">Pádel · Pool semanal</div>
+  <h1 id="title">Cargando…</h1>
+  <div class="meta" id="meta"></div>
+  <div class="stats" id="stats"></div>
+  <div class="bar" id="bar" hidden><i id="barFill" style="width:0"></i></div>
+</div></header>
+
+<main class="wrap" id="main">
+  <div class="loading" id="loading">Cargando la lista…</div>
+</main>
+
+<div class="actions" id="actions" hidden><div class="wrap">
+  <button class="btn primary" id="bJoin" type="button">Apuntarme</button>
+  <button class="btn" id="bMsg" type="button">Mensaje</button>
+  <button class="btn" id="bDraw" type="button">Sorteo</button>
+</div></div>
+
+<!-- Apuntarme -->
+<div class="sheet" id="sJoin" hidden><div class="panel" role="dialog" aria-labelledby="sJoinT">
+  <h3 id="sJoinT">Apuntarme <button class="x" data-close aria-label="Cerrar">×</button></h3>
+  <div id="joinForm">
+    <p id="joinHint">Escribe tu nombre como te conocen en el grupo.</p>
+    <label class="field"><span>Nombre</span><input type="text" id="fName" maxlength="40" autocomplete="name" placeholder="Ej.: Juan García"></label>
+    <div class="field"><span>Juego como</span>
+      <div class="seg" id="fSex">
+        <label class="H"><input type="radio" name="sx" value="H"> ♂ Hombre</label>
+        <label class="M"><input type="radio" name="sx" value="M"> ♀ Mujer</label>
+      </div>
+    </div>
+    <div class="err" id="fErr" role="alert"></div>
+    <button class="btn primary" id="fSend" type="button" style="width:100%">Apuntarme</button>
+  </div>
+  <div id="joinDone" hidden>
+    <p id="doneText"></p>
+    <div class="stack">
+      <a class="btn wa" id="doneWa" target="_blank" rel="noopener" style="text-align:center;text-decoration:none">📲 Avisar al grupo de WhatsApp</a>
+      <button class="btn" data-close type="button">Cerrar</button>
+    </div>
+  </div>
+</div></div>
+
+<!-- Mensaje para el grupo -->
+<div class="sheet" id="sMsg" hidden><div class="panel" role="dialog" aria-labelledby="sMsgT">
+  <h3 id="sMsgT">Mensaje para el grupo <button class="x" data-close aria-label="Cerrar">×</button></h3>
+  <p>Ábrelo en WhatsApp, elige el grupo y envíalo.</p>
+  <pre class="msg" id="msgText"></pre>
+  <div class="stack">
+    <a class="btn wa" id="msgWa" target="_blank" rel="noopener" style="text-align:center;text-decoration:none">📲 Abrir WhatsApp</a>
+    <button class="btn" id="msgCopy" type="button">Copiar mensaje</button>
+  </div>
+</div></div>
+
+<!-- Sorteo -->
+<div class="sheet" id="sDraw" hidden><div class="panel" role="dialog" aria-labelledby="sDrawT">
+  <h3 id="sDrawT">Sorteo <button class="x" data-close aria-label="Cerrar">×</button></h3>
+  <div id="drawBody"></div>
+</div></div>
+
+<!-- Organizador -->
+<div class="sheet" id="sOrg" hidden><div class="panel" role="dialog" aria-labelledby="sOrgT">
+  <h3 id="sOrgT">Soy el organizador <button class="x" data-close aria-label="Cerrar">×</button></h3>
+  <p>La pool se gestiona desde la app <b>Sorteo Pádel</b> del organizador: crear la pool, cerrar la inscripción, quitar jugadores y hacer el sorteo. Lo que hagas allí aparece aquí al momento.</p>
+  <button class="btn" data-close type="button" style="width:100%">Entendido</button>
+</div></div>
+
+<div class="toast" id="toast" role="status"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+"use strict";
+/* ===== CONFIGURACIÓN (la rellena el organizador una vez) ===== */
+const SUPABASE_URL = "";        // p. ej. https://xxxxxxxx.supabase.co
+const SUPABASE_KEY = "";        // clave pública «anon / publishable» (no es secreta)
+/* ============================================================ */
+
+const $ = id => document.getElementById(id);
+const store = {
+  get(k, d){ try { const v = localStorage.getItem("pool." + k); return v === null ? d : JSON.parse(v); } catch(e){ return d; } },
+  set(k, v){ try { localStorage.setItem("pool." + k, JSON.stringify(v)); } catch(e){} }
+};
+function h(tag, attrs, ...kids){
+  const el = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs || {})) { if (k === "class") el.className = v; else if (k.startsWith("on")) el[k] = v; else el.setAttribute(k, v); }
+  for (const c of kids.flat()) if (c != null && c !== false) el.append(c.nodeType ? c : String(c));
+  return el;
+}
+function toast(t){ const el = $("toast"); el.textContent = t; el.classList.add("on"); clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove("on"), 2200); }
+const hora = iso => { const d = new Date(iso), hoy = new Date();
+  const hm = d.toLocaleTimeString("es-ES", {hour:"2-digit", minute:"2-digit"});
+  return d.toDateString() === hoy.toDateString() ? hm : d.toLocaleDateString("es-ES", {weekday:"short", day:"numeric"}) + " " + hm; };
+
+/* ---------- acceso a datos: Supabase o modo ejemplo (?demo) ---------- */
+const params = new URLSearchParams(location.search);
+const DEMO = params.has("demo");
+const configured = SUPABASE_URL && SUPABASE_KEY && window.supabase;
+
+function supabaseBackend(){
+  const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  return {
+    async pool(codigo){
+      let q = sb.from("pools").select("*");
+      q = codigo ? q.eq("codigo", codigo.toUpperCase()) : q.order("fecha", {ascending:false}).order("created_at", {ascending:false});
+      const { data, error } = await q.limit(1);
+      if (error) throw error; return data[0] || null;
+    },
+    async datos(pool){
+      const [a, b, c] = await Promise.all([
+        sb.from("inscripciones").select("id,nombre,sexo,created_at").eq("pool_id", pool.id).order("created_at"),
+        sb.from("movimientos").select("tipo,nombre,created_at").eq("pool_id", pool.id).order("created_at", {ascending:false}).limit(30),
+        sb.from("resultados").select("pista,pareja,nombre,sexo").eq("pool_id", pool.id).order("pista").order("pareja"),
+      ]);
+      for (const r of [a, b, c]) if (r.error) throw r.error;
+      return { inscritos: a.data, movimientos: b.data, resultados: c.data };
+    },
+    escuchar(pool, cb){
+      sb.channel("pool-" + pool.id)
+        .on("postgres_changes", {event:"*", schema:"public", table:"inscripciones", filter:"pool_id=eq." + pool.id}, cb)
+        .on("postgres_changes", {event:"*", schema:"public", table:"pools", filter:"id=eq." + pool.id}, cb)
+        .on("postgres_changes", {event:"*", schema:"public", table:"resultados", filter:"pool_id=eq." + pool.id}, cb)
+        .subscribe();
+    },
+    async apuntarse(pool, nombre, sexo){
+      const { data, error } = await sb.rpc("apuntarse", {p_pool: pool.id, p_nombre: nombre, p_sexo: sexo});
+      if (error) throw error; return data;
+    },
+    async borrarse(id, token){
+      const { data, error } = await sb.rpc("borrarse", {p_id: id, p_token: token});
+      if (error) throw error; return data;
+    }
+  };
+}
+
+function demoBackend(){
+  // Datos de EJEMPLO para ver el diseño; no son reales y no se guardan
+  const names = [["Vicente","H"],["Juan","H"],["Lucía","M"],["Carlos","H"],["Marta","M"],["Miguel","H"],["Antonio","H"],["Elena","M"],["Paula","M"],["Raúl","H"],["Sara","M"],["Diego","H"],["Clara","M"],["Irene","M"],["Pedro","H"],["Ana","M"],["Luis","H"]];
+  const t0 = Date.now() - 36e5 * 20;
+  const pool = {id:"demo", codigo:"DEMO", titulo:"POOL MARTES 13 OCT", horario:"21:30-23:00", importe:"6€ PERSONA", fecha:"2026-10-13", max_jugadores:20, max_reservas:10, estado:"abierta"};
+  let ins = names.map(([n, s], i) => ({id:"d" + i, nombre:n, sexo:s, created_at:new Date(t0 + i * 36e5).toISOString()}));
+  let mov = ins.map(i => ({tipo:"alta", nombre:i.nombre, created_at:i.created_at})).reverse();
+  let cb = null;
+  return {
+    async pool(){ return pool; },
+    async datos(){ return {inscritos: ins.slice(), movimientos: mov.slice(), resultados: []}; },
+    escuchar(p, f){ cb = f; },
+    async apuntarse(p, nombre, sexo){
+      if (ins.some(i => i.nombre.toLowerCase() === nombre.toLowerCase())) throw {message:"NOMBRE_REPETIDO"};
+      const r = {id:"d" + Date.now(), nombre, sexo, created_at:new Date().toISOString()};
+      ins.push(r); mov.unshift({tipo:"alta", nombre, created_at:r.created_at}); setTimeout(cb, 50);
+      return {id:r.id, token:"demo"};
+    },
+    async borrarse(id){
+      const r = ins.find(i => i.id === id); ins = ins.filter(i => i.id !== id);
+      if (r) mov.unshift({tipo:"baja", nombre:r.nombre, created_at:new Date().toISOString()}); setTimeout(cb, 50); return true;
+    }
+  };
+}
+
+const ERRORES = {
+  POOL_CERRADA: "La inscripción está cerrada.",
+  POOL_COMPLETA: "La lista y las reservas están completas.",
+  NOMBRE_REPETIDO: "Ya hay alguien apuntado con ese nombre. Añade tu apellido o una inicial.",
+  DATOS_NO_VALIDOS: "Escribe tu nombre y marca si juegas como hombre o mujer.",
+  POOL_NO_EXISTE: "Esta pool ya no existe.",
+};
+const errText = e => { const m = String(e && e.message || e); const k = Object.keys(ERRORES).find(k => m.includes(k)); return k ? ERRORES[k] : "No se ha podido conectar. Comprueba la conexión y vuelve a intentarlo."; };
+
+/* ---------- estado y pintado ---------- */
+let api = null, POOL = null, D = {inscritos: [], movimientos: [], resultados: []};
+const mias = () => store.get("mias", {});                  // id de inscripción -> token
+function shareUrl(){ const u = new URL(location.href); u.search = ""; u.hash = ""; return u.toString() + (DEMO ? "?demo" : POOL ? "?pool=" + POOL.codigo : ""); }
+
+function render(){
+  const p = POOL, max = p.max_jugadores, lista = D.inscritos.slice(0, max), reservas = D.inscritos.slice(max);
+  document.title = p.titulo;
+  $("eyebrow").textContent = DEMO ? "Vista de ejemplo · datos inventados" : "Pádel · Pool semanal";
+  $("title").textContent = p.titulo;
+  $("meta").textContent = [p.horario, p.importe && p.importe.toLowerCase()].filter(Boolean).join(" · ");
+  const H = lista.filter(i => i.sexo === "H").length, M = lista.length - H;
+  const estado = p.estado === "sorteada" ? ["Sorteada", "ok"] : p.estado === "cerrada" ? ["Inscripción cerrada", "warn"] : lista.length >= max ? ["🟢 Pool completa", "ok"] : ["Inscripción abierta", ""];
+  $("stats").replaceChildren(...[
+    h("span", {class:"pill"}, `${lista.length} / ${max} jugadores`),
+    reservas.length ? h("span", {class:"pill"}, `${reservas.length} en reservas`) : null,
+    h("span", {class:"pill"}, `♂ ${H} · ♀ ${M}`),
+    h("span", {class:"pill " + estado[1]}, estado[0])].filter(Boolean));
+  $("bar").hidden = false; $("barFill").style.width = Math.min(100, lista.length / max * 100) + "%";
+
+  const mine = mias();
+  const row = (i, n) => h("li", {},
+    h("span", {class:"n"}, n + "."), h("span", {class:"dot " + i.sexo, title: i.sexo === "M" ? "Mujer" : "Hombre"}),
+    h("span", {class:"nm"}, i.nombre), mine[i.id] ? h("span", {class:"me"}, "TÚ") : null,
+    mine[i.id] && p.estado !== "sorteada" ? h("button", {class:"del", type:"button", onclick: () => quitar(i)}, "Borrarme") : null);
+
+  const main = $("main"); main.replaceChildren();
+  if (p.estado === "sorteada" && D.resultados.length) main.append(h("div", {class:"note"}, "🎲 El sorteo ya está hecho. Pulsa «Sorteo» abajo para ver las pistas."));
+  if (p.estado === "cerrada") main.append(h("div", {class:"note warn"}, "La inscripción está cerrada. Si necesitas cambiar algo, habla con el organizador."));
+
+  const free = [];
+  for (let k = lista.length; k < max; k++) free.push(h("li", {class:"free"}, h("span", {class:"n"}, (k + 1) + "."), h("span", {class:"nm"}, "Libre")));
+  main.append(h("section", {}, h("h2", {}, "La lista", h("small", {}, "por orden de inscripción")),
+    h("ol", {class:"list"}, lista.map((i, k) => row(i, k + 1)), free)));
+
+  main.append(h("section", {}, h("h2", {}, "Reservas", h("small", {}, "entran por orden si alguien se borra")),
+    reservas.length ? h("ol", {class:"list"}, reservas.map((i, k) => row(i, "R" + (k + 1)))) : h("div", {class:"list"}, h("div", {class:"empty"}, "Nadie en reservas."))));
+
+  main.append(h("section", {}, h("h2", {}, "Movimientos"),
+    D.movimientos.length ? h("ul", {class:"moves"}, D.movimientos.slice(0, 15).map(m => h("li", {class:m.tipo},
+      h("b", {}, m.tipo === "alta" ? "＋" : "－"), h("span", {}, `${m.nombre} ${m.tipo === "alta" ? "se apunta" : "se borra"}`), h("span", {class:"t"}, hora(m.created_at)))))
+      : h("div", {class:"empty"}, "Todavía no se ha apuntado nadie.")));
+
+  main.append(h("footer", {}, h("button", {type:"button", onclick: () => open("sOrg")}, "Soy el organizador")));
+
+  $("actions").hidden = false;
+  $("bJoin").disabled = p.estado !== "abierta" || D.inscritos.length >= max + (p.max_reservas ?? 0);
+  $("bJoin").textContent = p.estado !== "abierta" ? "Inscripción cerrada" : lista.length >= max ? "Apuntarme a reservas" : "Apuntarme";
+}
+
+/* ---------- mensaje de WhatsApp ---------- */
+function mensaje(nuevo){
+  const p = POOL, max = p.max_jugadores, lista = D.inscritos.slice(0, max), reservas = D.inscritos.slice(max);
+  const L = [`🎾 ${p.titulo}`];
+  if (p.horario) L.push(`HORARIO: ${p.horario}`);
+  if (p.importe) L.push(`IMPORTE: ${p.importe}`);
+  L.push("");
+  if (nuevo) L.push(`✅ Se ha apuntado ${nuevo}`, "");
+  L.push(`👥 LISTA (${lista.length}/${max})${lista.length >= max ? " · 🟢 COMPLETA" : ""}`);
+  lista.forEach((i, k) => L.push(`${k + 1}. ${i.nombre}`));
+  if (reservas.length) { L.push("", "⏳ RESERVAS"); reservas.forEach((i, k) => L.push(`R${k + 1}. ${i.nombre}`)); }
+  if (p.estado === "abierta") L.push("", `Apúntate aquí 👉 ${shareUrl()}`);
+  return L.join("\n");
+}
+const waLink = t => "https://wa.me/?text=" + encodeURIComponent(t);
+
+/* ---------- hojas ---------- */
+function open(id){ $(id).hidden = false; }
+function closeAll(){ document.querySelectorAll(".sheet").forEach(s => s.hidden = true); }
+document.querySelectorAll(".sheet").forEach(s => s.addEventListener("click", e => { if (e.target === s || e.target.closest("[data-close]")) closeAll(); }));
+document.addEventListener("keydown", e => { if (e.key === "Escape") closeAll(); });
+
+function setSex(v){ $("fSex").querySelectorAll("label").forEach(l => { const i = l.querySelector("input"); i.checked = i.value === v; l.classList.toggle("sel", i.checked); }); }
+$("fSex").querySelectorAll("input").forEach(i => i.onchange = () => setSex(i.value));
+$("bJoin").onclick = () => {
+  const yo = store.get("yo", {});
+  $("fName").value = yo.nombre || ""; setSex(yo.sexo || ""); $("fErr").textContent = "";
+  $("joinForm").hidden = false; $("joinDone").hidden = true;
+  $("joinHint").textContent = D.inscritos.length >= POOL.max_jugadores ? "La lista está completa: entrarás en reservas y pasarás a la lista por orden si alguien se borra." : "Escribe tu nombre como te conocen en el grupo.";
+  open("sJoin"); setTimeout(() => $("fName").focus(), 50);
+};
+$("fName").onkeydown = e => { if (e.key === "Enter") $("fSend").click(); };
+$("fSend").onclick = async () => {
+  const nombre = $("fName").value.replace(/\s+/g, " ").trim(), sx = $("fSex").querySelector("input:checked");
+  if (!nombre) { $("fErr").textContent = "Escribe tu nombre."; return; }
+  if (!sx) { $("fErr").textContent = "Marca si juegas como hombre o mujer."; return; }
+  $("fSend").disabled = true; $("fSend").textContent = "Apuntando…"; $("fErr").textContent = "";
+  try {
+    const r = await api.apuntarse(POOL, nombre, sx.value);
+    const m = mias(); m[r.id] = r.token; store.set("mias", m);
+    store.set("yo", {nombre, sexo: sx.value});
+    await cargar();
+    const pos = D.inscritos.findIndex(i => i.id === r.id);
+    $("doneText").textContent = pos >= POOL.max_jugadores
+      ? `Estás en reservas (R${pos - POOL.max_jugadores + 1}). Entrarás en la lista por orden si alguien se borra.`
+      : `¡Hecho, ${nombre}! Estás el ${pos + 1}.º de la lista. Avisa al grupo para que vean la lista actualizada.`;
+    $("doneWa").href = waLink(mensaje(nombre));
+    $("joinForm").hidden = true; $("joinDone").hidden = false;
+  } catch(e) { $("fErr").textContent = errText(e); }
+  $("fSend").disabled = false; $("fSend").textContent = "Apuntarme";
+};
+async function quitar(i){
+  if (!await confirmar(`¿Borrar a ${i.nombre} de la pool?`)) return;
+  try {
+    const ok = await api.borrarse(i.id, mias()[i.id]);
+    const m = mias(); delete m[i.id]; store.set("mias", m);
+    toast(ok ? "Te has borrado de la pool" : "Esa inscripción ya no estaba"); await cargar();
+  } catch(e) { toast(errText(e)); }
+}
+// confirmación propia (los navegadores dentro de WhatsApp a veces bloquean confirm())
+function confirmar(texto){
+  return new Promise(res => {
+    const s = h("div", {class:"sheet"}, h("div", {class:"panel", role:"dialog"},
+      h("h3", {}, "¿Seguro?"), h("p", {}, texto),
+      h("div", {class:"stack"},
+        h("button", {class:"btn primary", type:"button", onclick: () => { s.remove(); res(true); }}, "Sí, borrarme"),
+        h("button", {class:"btn", type:"button", onclick: () => { s.remove(); res(false); }}, "Cancelar"))));
+    document.body.append(s);
+  });
+}
+$("bMsg").onclick = () => { const t = mensaje(); $("msgText").textContent = t; $("msgWa").href = waLink(t); open("sMsg"); };
+$("msgCopy").onclick = async () => {
+  try { await navigator.clipboard.writeText($("msgText").textContent); toast("Mensaje copiado"); }
+  catch(e) { const r = document.createRange(); r.selectNodeContents($("msgText")); getSelection().removeAllRanges(); getSelection().addRange(r); toast("Selecciona y copia el texto"); }
+};
+$("bDraw").onclick = () => {
+  const b = $("drawBody"); b.replaceChildren();
+  if (!D.resultados.length) b.append(h("p", {}, "Esperando a que el organizador sortee. Se verá aquí en cuanto pulse."));
+  else {
+    const pistas = {};
+    D.resultados.forEach(r => { ((pistas[r.pista] ||= {})[r.pareja] ||= []).push(r.nombre); });
+    Object.keys(pistas).sort((a, b) => a - b).forEach(n => b.append(h("div", {class:"court"}, h("b", {}, `🎾 Pista ${n}`),
+      Object.keys(pistas[n]).sort((a, b) => a - b).map(k => h("div", {}, `👫 Pareja ${k}: ${pistas[n][k].join(" + ")}`)))));
+  }
+  open("sDraw");
+};
+
+/* ---------- arranque ---------- */
+async function cargar(){ D = await api.datos(POOL); render(); }
+async function start(){
+  if (!DEMO && !configured) {
+    $("title").textContent = "Inscripción online muy pronto";
+    $("meta").textContent = "El organizador está terminando de preparar la lista.";
+    $("main").replaceChildren(h("div", {class:"note"}, "Mientras tanto, apúntate como siempre en el grupo de WhatsApp."));
+    return;
+  }
+  api = DEMO ? demoBackend() : supabaseBackend();
+  try {
+    POOL = await api.pool(params.get("pool"));
+    if (!POOL) {
+      $("title").textContent = "Aún no hay pool abierta";
+      $("main").replaceChildren(h("div", {class:"note"}, "En cuanto el organizador abra la de esta semana, aparecerá aquí."));
+      return;
+    }
+    await cargar();
+    let t = null;
+    api.escuchar(POOL, async () => { clearTimeout(t); t = setTimeout(async () => { POOL = await api.pool(POOL.codigo) || POOL; await cargar(); }, 250); });
+    document.addEventListener("visibilitychange", () => { if (!document.hidden) cargar().catch(() => {}); });
+  } catch(e) {
+    $("title").textContent = "No se ha podido cargar";
+    $("main").replaceChildren(h("div", {class:"note warn"}, errText(e)));
+  }
+}
+start();
+</script>
+</body>
+</html>
