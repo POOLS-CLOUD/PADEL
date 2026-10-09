@@ -299,7 +299,11 @@ function vistaPool(){
     D.resultados.forEach(r => ((pistas[r.pista] ||= {})[r.pareja] ||= []).push(r.nombre));
     main.append(h("section", {}, h("h2", {}, "🎲 Sorteo", h("small", {}, "pistas y parejas")),
       h("div", {class: "draw"}, Object.keys(pistas).sort((a, b) => a - b).map(n => h("div", {class: "court"}, h("b", {}, `Pista ${n}`),
-        Object.keys(pistas[n]).sort((a, b) => a - b).map(k => h("div", {class: "pr"}, h("span", {}, `Pareja ${k}`), h("span", {}, pistas[n][k].join(" + ")))))))));
+        Object.keys(pistas[n]).sort((a, b) => a - b).map(k => h("div", {class: "pr"}, h("span", {}, `Pareja ${k}`), h("span", {}, pistas[n][k].join(" + "))))))),
+      // apuntados que no han entrado (solo se sortean pistas completas, por orden de inscripción)
+      (() => { const enPista = new Set(D.resultados.map(r => r.nombre.toLowerCase()));
+        const sin = D.inscritos.filter(i => !enPista.has(i.nombre.toLowerCase())).map(i => i.nombre);
+        return sin.length ? h("div", {class: "note", style: "margin-top:10px"}, `⏳ Sin pista: ${sin.join(", ")}`) : null; })()));
   } else if (p.estado === "sorteada" || p.estado === "cerrada") {
     main.append(h("div", {class: p.estado === "cerrada" ? "note warn" : "note"}, p.estado === "cerrada"
       ? "La inscripción está cerrada. El sorteo aparecerá aquí en cuanto el organizador lo haga." : "Esperando a que el organizador publique el sorteo."));
