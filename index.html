@@ -323,6 +323,8 @@ function vistaPool(){
       (() => { const enPista = new Set(D.resultados.map(r => r.nombre.toLowerCase()));
         const sin = D.inscritos.filter(i => !enPista.has(i.nombre.toLowerCase())).map(i => i.nombre);
         return sin.length ? h("div", {class: "note", style: "margin-top:10px"}, `⏳ Sin pista: ${sin.join(", ")}`) : null; })()));
+  } else if (p.estado === "sorteada" && p.mostrar_sorteo === false) {
+    main.append(h("div", {class: "note"}, "🎲 El sorteo ya está hecho. El organizador lo publicará aquí en breve."));
   } else if (p.estado === "sorteada" || p.estado === "cerrada") {
     main.append(h("div", {class: p.estado === "cerrada" ? "note warn" : "note"}, p.estado === "cerrada"
       ? "La inscripción está cerrada. El sorteo aparecerá aquí en cuanto el organizador lo haga." : "Esperando a que el organizador publique el sorteo."));
