@@ -37,7 +37,7 @@ a{color:var(--accent)}
 /* cabecera */
 header.top{background:var(--head);color:var(--head-ink);padding-top:calc(16px + var(--sat));padding-bottom:22px;position:relative;overflow:hidden}
 header.top .wrap{position:relative;z-index:1}
-/* portada: jugador de pádel saltando para un remate, dibujado en SVG */
+/* portada: fondo difuminado de pista de pádel con focos, dibujado en SVG */
 header.top.hero{min-height:calc(190px + var(--sat));display:flex;align-items:flex-end;padding-bottom:26px;
   background:radial-gradient(120% 90% at 85% 30%,#1d3a63 0%,#13233A 55%,#0b1524 100%)}
 header.top.hero .wrap{width:100%}
@@ -149,52 +149,32 @@ input[type=text]{font:16px var(--fb);color:var(--ink);background:var(--bg);borde
 <body>
 
 <header class="top" id="top">
-  <svg class="heroart" viewBox="0 0 400 220" preserveAspectRatio="xMaxYMax meet" aria-hidden="true">
+  <svg class="heroart" viewBox="0 0 400 220" preserveAspectRatio="xMaxYMax slice" aria-hidden="true">
     <defs>
-      <linearGradient id="hgJug" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#E4FF3A"/><stop offset="1" stop-color="#9BE15D"/></linearGradient>
-      <linearGradient id="hgVel" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#0b1524" stop-opacity=".96"/><stop offset=".45" stop-color="#0b1524" stop-opacity=".55"/><stop offset=".7" stop-color="#0b1524" stop-opacity="0"/></linearGradient>
-      <radialGradient id="hgFoco"><stop offset="0" stop-color="#ffffff" stop-opacity=".9"/><stop offset=".25" stop-color="#cfe4ff" stop-opacity=".45"/><stop offset="1" stop-color="#7FB2F0" stop-opacity="0"/></radialGradient>
-      <linearGradient id="hgCristal" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7FB2F0" stop-opacity=".16"/><stop offset="1" stop-color="#7FB2F0" stop-opacity=".03"/></linearGradient>
-      <filter id="hgBrillo" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+      <linearGradient id="hgVel" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#0b1524" stop-opacity=".85"/><stop offset=".5" stop-color="#0b1524" stop-opacity=".35"/><stop offset="1" stop-color="#0b1524" stop-opacity="0"/></linearGradient>
+      <radialGradient id="hgFoco"><stop offset="0" stop-color="#ffffff" stop-opacity=".85"/><stop offset=".3" stop-color="#cfe4ff" stop-opacity=".4"/><stop offset="1" stop-color="#7FB2F0" stop-opacity="0"/></radialGradient>
+      <radialGradient id="hgLima"><stop offset="0" stop-color="#E4FF3A" stop-opacity=".35"/><stop offset="1" stop-color="#E4FF3A" stop-opacity="0"/></radialGradient>
+      <linearGradient id="hgCristal" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7FB2F0" stop-opacity=".18"/><stop offset="1" stop-color="#7FB2F0" stop-opacity=".03"/></linearGradient>
+      <filter id="hgDifu" x="-10%" y="-10%" width="120%" height="120%"><feGaussianBlur stdDeviation="2.8"/></filter>
     </defs>
-    <!-- focos del estadio -->
-    <circle cx="205" cy="22" r="26" fill="url(#hgFoco)"/>
-    <circle cx="370" cy="14" r="22" fill="url(#hgFoco)"/>
-    <circle cx="120" cy="30" r="18" fill="url(#hgFoco)" opacity=".7"/>
-    <!-- pista de pádel: paneles de cristal y suelo -->
-    <rect x="140" y="70" width="260" height="130" fill="url(#hgCristal)"/>
-    <g stroke="#7FB2F0" stroke-opacity=".28" fill="none" stroke-width="1.5">
-      <line x1="140" y1="70" x2="400" y2="70"/>
-      <line x1="140" y1="70" x2="140" y2="200"/><line x1="205" y1="70" x2="205" y2="200"/>
-      <line x1="270" y1="70" x2="270" y2="200"/><line x1="335" y1="70" x2="335" y2="200"/>
-      <line x1="120" y1="200" x2="400" y2="200" stroke-width="3" stroke-opacity=".35"/>
-      <line x1="150" y1="188" x2="400" y2="188" stroke-opacity=".15"/>
+    <g filter="url(#hgDifu)">
+      <!-- focos del estadio -->
+      <circle cx="205" cy="20" r="30" fill="url(#hgFoco)"/>
+      <circle cx="368" cy="14" r="26" fill="url(#hgFoco)"/>
+      <circle cx="110" cy="28" r="20" fill="url(#hgFoco)" opacity=".7"/>
+      <circle cx="290" cy="34" r="16" fill="url(#hgFoco)" opacity=".6"/>
+      <!-- reflejo de color en la pista -->
+      <ellipse cx="320" cy="170" rx="90" ry="40" fill="url(#hgLima)"/>
+      <!-- pista de pádel: paneles de cristal y suelo -->
+      <rect x="120" y="70" width="280" height="130" fill="url(#hgCristal)"/>
+      <g stroke="#7FB2F0" stroke-opacity=".32" fill="none" stroke-width="2">
+        <line x1="120" y1="70" x2="400" y2="70"/>
+        <line x1="120" y1="70" x2="120" y2="200"/><line x1="190" y1="70" x2="190" y2="200"/>
+        <line x1="260" y1="70" x2="260" y2="200"/><line x1="330" y1="70" x2="330" y2="200"/>
+        <line x1="100" y1="200" x2="400" y2="200" stroke-width="3.5" stroke-opacity=".4"/>
+        <line x1="130" y1="186" x2="400" y2="186" stroke-opacity=".16"/>
+      </g>
     </g>
-    <!-- arco del golpe -->
-    <path d="M250 70 Q262 20 300 18" stroke="#E4FF3A" stroke-opacity=".45" stroke-width="3" fill="none" stroke-linecap="round" stroke-dasharray="2 7"/>
-    <!-- jugador saltando para el remate (smash) -->
-    <g filter="url(#hgBrillo)" stroke="url(#hgJug)" stroke-linecap="round" stroke-linejoin="round" fill="none">
-      <line x1="315" y1="98" x2="323" y2="142" stroke-width="21"/>
-      <polyline points="311,100 300,70 297,44" stroke-width="9"/>
-      <polyline points="327,104 345,124 340,147" stroke-width="8"/>
-      <polyline points="320,144 302,170 314,196" stroke-width="13"/>
-      <polyline points="326,146 342,176 334,206" stroke-width="13"/>
-      <line x1="314" y1="197" x2="324" y2="202" stroke-width="8"/>
-      <line x1="334" y1="207" x2="345" y2="210" stroke-width="8"/>
-      <line x1="297" y1="43" x2="294" y2="31" stroke-width="5"/>
-    </g>
-    <!-- pala de pádel (maciza, con agujeros) -->
-    <g filter="url(#hgBrillo)">
-      <ellipse cx="289" cy="15" rx="12" ry="15" transform="rotate(-12 289 15)" fill="url(#hgJug)"/>
-      <g fill="#0b1524" opacity=".55"><circle cx="285" cy="10" r="1.6"/><circle cx="291" cy="9" r="1.6"/><circle cx="287" cy="16" r="1.6"/><circle cx="293" cy="15" r="1.6"/><circle cx="289" cy="22" r="1.6"/></g>
-    </g>
-    <circle cx="318" cy="84" r="12" fill="url(#hgJug)" filter="url(#hgBrillo)"/>
-    <!-- la bola, arriba -->
-    <g class="bola">
-      <circle cx="322" cy="12" r="6" fill="#ffffff" filter="url(#hgBrillo)"/>
-    </g>
-    <!-- sombra en el suelo: está en el aire -->
-    <ellipse cx="326" cy="214" rx="26" ry="3.5" fill="#000" opacity=".35"/>
     <!-- oscurecido a la izquierda para que el texto se lea bien -->
     <rect x="0" y="0" width="400" height="220" fill="url(#hgVel)"/>
   </svg>
