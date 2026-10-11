@@ -75,6 +75,50 @@ function wireClubChips(px){
     ["n", "e"].forEach(x => { if ($(x + "Clubs")) { $(x + "Clubs").innerHTML = clubChips(); wireClubChips(x); } });
   });
 }
+// Emails de otros administradores del evento. Al crear, se proponen los de la última vez (cada uno con su ×).
+cloud.adminsForm = {};
+const adminsRecordados = () => { const l = store.get("adminsRecordados", []); return Array.isArray(l) ? l : []; };
+const listaAdmins = px => cloud.adminsForm[px] || (cloud.adminsForm[px] = px === "n" ? adminsRecordados().slice() : []);
+function adminsChips(px){
+  const l = listaAdmins(px);
+  return l.length ? l.map((e, i) => `<span class="chip" style="display:inline-flex;align-items:center;gap:6px;border-style:solid">${esc(e)}<button type="button" class="x" data-deladm="${i}" title="Quitar" style="font-size:18px;padding:0 2px">×</button></span>`).join("")
+    : `<span class="help">Nadie más: solo tú gestionarás este evento.</span>`;
+}
+function wireAdmins(px){
+  const box = $(px + "Adm"); if (!box) return;
+  const pinta = () => { box.innerHTML = adminsChips(px); wireAdmins(px); };
+  box.querySelectorAll("[data-deladm]").forEach(b => b.onclick = () => {
+    const l = listaAdmins(px); l.splice(+b.dataset.deladm, 1);
+    if (px === "n") store.set("adminsRecordados", l.slice());   // al crear, también se olvida para la próxima vez
+    pinta();
+  });
+  const add = () => {
+    const e = $(px + "AdmIn").value.trim().toLowerCase();
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e)) { toast("Escribe un email válido"); return; }
+    if (cloud.user && e === String(cloud.user.email || "").toLowerCase()) { toast("Ese eres tú: ya puedes gestionarlo"); return; }
+    const l = listaAdmins(px); if (!l.includes(e)) l.push(e);
+    if (px === "n") store.set("adminsRecordados", l.slice());
+    $(px + "AdmIn").value = ""; pinta();
+  };
+  $(px + "AdmAdd").onclick = add;
+  $(px + "AdmIn").onkeydown = ev => { if (ev.key === "Enter") { ev.preventDefault(); add(); } };
+}
+// Al abrir «Editar datos evento» se cargan los administradores actuales
+async function cargarAdminsForm(px, p){
+  try {
+    const r = await cloud.sb.rpc("admins_evento", {p_pool: p.id});
+    cloud.adminsForm[px] = r.error ? [] : (r.data || []).map(x => typeof x === "string" ? x : x.admins_evento);
+  } catch(e) { cloud.adminsForm[px] = []; }
+  if ($(px + "Adm")) { $(px + "Adm").innerHTML = adminsChips(px); wireAdmins(px); }
+}
+async function guardarAdmins(p, px, nuevo){
+  const r = await cloud.sb.rpc("poner_admins", {p_pool: p.id, p_emails: listaAdmins(px)});
+  if (r.error) { toast(r.error.code === "PGRST202" ? "Falta ejecutar cambio_20_admins_por_evento.sql en Supabase" : "No se pudieron guardar los administradores: " + cloudError(r.error)); return; }
+  const sin = r.data || [];
+  if (sin.length) setTimeout(() => toast(`Aviso: ${sin.join(", ")} aún no ${sin.length === 1 ? "es organizador" : "son organizadores"}. Podrá${sin.length === 1 ? "" : "n"} gestionarlo cuando tenga${sin.length === 1 ? "" : "n"} cuenta.`), 1500);
+  if (nuevo) cloud.adminsForm.n = null;   // el siguiente evento vuelve a proponer los recordados
+}
+
 // Formulario de pool (crear o editar)
 function poolFormHtml(px, v, boton){
   return `<div style="display:grid;gap:8px;margin-top:10px">
@@ -95,6 +139,9 @@ function poolFormHtml(px, v, boton){
         Parejas fijas <span class="help" style="font-weight:400">(se apuntan por parejas y el sorteo solo reparte pistas)</span></label>
       <div class="row"><label class="lbl" style="flex:1">Pistas <span class="help" id="${px}Plazas">(${Math.max(1, Math.round((v.max_jugadores || 20) / 4)) * 4} plazas)</span><input type="number" id="${px}Pistas" value="${Math.max(1, Math.round((v.max_jugadores || 20) / 4))}" min="1" max="15" step="1" inputmode="numeric"></label>
         <label class="lbl" style="flex:1">Reservas<input type="number" id="${px}Res" value="${v.max_reservas ?? 10}" min="0" max="40"></label></div>
+      <div class="lbl">👥 Otros administradores <span class="help" style="font-weight:400">(podrán ver y gestionar este evento)</span>
+        <div class="row" style="margin-top:4px"><input type="email" id="${px}AdmIn" placeholder="email@ejemplo.com" autocomplete="off" style="flex:1"><button type="button" class="btn small" id="${px}AdmAdd">Añadir</button></div>
+        <div class="chips" id="${px}Adm" style="margin-top:6px">${adminsChips(px)}</div></div>
       <button class="btn primary" id="${px}Save">${boton}</button>
     </div>`;
 }
@@ -307,9 +354,14 @@ window.clearCloudAgenda = async () => {
 };
 
 async function loadPools(){
-  const { data, error } = await cloud.sb.from("pools").select("*").order("fecha", {ascending: false}).order("created_at", {ascending: false}).limit(40);
+  const { data, error } = await cloud.sb.from("pools").select("*").order("fecha", {ascending: false}).order("created_at", {ascending: false}).limit(80);
   if (error) throw error;
   cloud.pools = data;
+  // solo los eventos que ha creado o en los que figura como administrador (el modo creador los ve todos)
+  try {
+    const r = await cloud.sb.rpc("mis_eventos");
+    if (!r.error) { const mios = new Set((r.data || []).map(x => typeof x === "string" ? x : x.mis_eventos)); cloud.pools = data.filter(p => mios.has(p.id)); }
+  } catch(e) { }
   cloud.cuentas = {};
   if (data.length) {
     const r = await cloud.sb.from("inscripciones").select("pool_id").in("pool_id", data.map(x => x.id));
@@ -348,8 +400,8 @@ function pedirTexto(titulo, ayuda, {clave = false, si = "Aceptar"} = {}){
     setTimeout(() => m.querySelector("#ptTxt").focus(), 50);
   });
 }
-// Antes de entrar o borrar: si el evento es de otro organizador, se pide su contraseña
-async function asegurarAcceso(p){
+// (la contraseña por evento se quitó: ahora cada evento lo gestionan su creador y sus administradores)
+async function asegurarAccesoSinUso(p){
   const a = await cargarAcceso(p);
   if (!a || a.puede) return true;
   for (;;) {
@@ -581,14 +633,12 @@ function renderLista(box){
   if ($("lPas")) $("lPas").ontoggle = () => cloud.verPasados = $("lPas").open;
   box.querySelectorAll("[data-open]").forEach(el => el.onclick = async () => {
     const x = cloud.pools.find(y => y.id === el.dataset.open);
-    if (!await asegurarAcceso(x)) return;
     await guard(async () => { await selectPool(x); cloud.vista = "evento"; });
     go(0);
   });
   box.querySelectorAll("[data-compartir]").forEach(b => b.onclick = () => compartirEvento(cloud.pools.find(y => y.id === b.dataset.compartir)));
   box.querySelectorAll("[data-borrar]").forEach(b => b.onclick = async () => {
     const x = cloud.pools.find(y => y.id === b.dataset.borrar);
-    if (!await asegurarAcceso(x)) return;
     if (!await ask(`¿Quieres eliminar el evento «${x.titulo}» (${fechaCorta(x.fecha)})?\n\nSe borrarán también sus apuntados y su sorteo, y desaparecerá de la web. No se puede deshacer.`, "Eliminar")) return;
     guard(async () => {
       const { error } = await cloud.sb.from("pools").delete().eq("id", x.id); if (error) throw error;
@@ -608,9 +658,6 @@ function renderCrear(box){
       <p class="help" style="margin:4px 0 6px">Uno por línea, con o sin número delante (sin número van al siguiente hueco libre). Al crear el evento quedan apuntados en este orden; los demás se apuntan después en la web. Se guarda para el próximo evento.</p>
       <textarea id="nLista" style="min-height:140px" placeholder="1. Juan&#10;2. Ana&#10;3. Luis">${esc(getLista())}</textarea>
       </div>
-      <label class="lbl" style="display:block;margin-top:10px">🔑 Contraseña del evento
-        <input type="password" id="nClave" autocomplete="new-password" placeholder="Mínimo 4 caracteres" style="margin-top:4px"></label>
-      <p class="help" style="margin:4px 0 0">Otros organizadores la necesitarán para cambiar o borrar este evento. Tú no tendrás que escribirla.</p>
       ${poolFormHtml("n", {fecha: d, titulo: poolTitle(d), horario: hf.horario || "21:30-23:00", importe: hf.importe || "6€ PERSONA", notas: hf.notas, max_jugadores: 20, max_reservas: 10}, "Crear y abrir inscripción")}
     </div>`;
   $("crVolver").onclick = () => irA("menu");
@@ -643,10 +690,8 @@ function renderCloud(){
     const p = cloud.pool;
     box.innerHTML = `<button class="btn small ghost" id="cVolver" style="margin-bottom:10px">‹ Eventos activos</button>
       <div class="card"><div style="font-weight:700;font-size:17px">🔒 ${esc(p.titulo)}</div>
-      <p class="help" style="margin:6px 0 10px">Este evento es de otro organizador y tiene contraseña. Escríbela para poder gestionarlo.</p>
-      <button class="btn primary" id="cDesbloq" style="width:100%">🔓 Desbloquear</button></div>`;
+      <p class="help" style="margin:6px 0 0">Este evento es de otro organizador y no figuras como administrador. Pídele que añada tu email en el evento.</p></div>`;
     $("cVolver").onclick = () => irA("lista");
-    $("cDesbloq").onclick = async () => { if (await asegurarAcceso(p)) { await guard(() => selectPool(p)); renderCloud(); } };
     return;
   }
   const p = cloud.pool, html = [`<button class="btn small ghost" id="cVolver" style="margin-bottom:10px">‹ Eventos activos</button>`, avisosHtml(p.id)];
@@ -672,7 +717,6 @@ function renderCloud(){
           : p.estado === "sorteada" ? `<button class="btn small" id="cOpen">🔓 Reabrir inscripción</button><button class="btn small" id="cClose">🔒 Cerrar también reservas</button>`
           : `<button class="btn small" id="cOpen">🔓 Abrir inscripción</button>`}
         <button class="btn small ghost" id="cEdit">✏️ Editar datos evento</button>
-        <button class="btn small ghost" id="cClave">🔑 ${(cloud.acceso[p.id] || {}).tiene_clave ? "Cambiar contraseña" : "Poner contraseña"}</button>
         <button class="btn small danger" id="cDelPool">🗑 Borrar</button>
       </div>
       ${p.notas ? `<div class="help" style="margin:8px 0 0;white-space:pre-line">${esc(p.notas)}</div>` : ""}
@@ -761,18 +805,15 @@ function wireCloud(){
     remember(g.dataset.sx, inp.value); save(); renderCloud();
   }));
   document.querySelectorAll("#cloudBox [data-pick]").forEach(el => el.onclick = () => guard(async () => { await selectPool(cloud.pools.find(x => x.id === el.dataset.pick)); }));
-  wirePoolForm("n"); wirePoolForm("e");
-  on("cEdit", () => $("cEditBox").classList.toggle("hidden"));
-  on("cClave", async () => { if (await ponerClave(p)) renderCloud(); });
+  wirePoolForm("n"); wirePoolForm("e"); wireAdmins("n"); wireAdmins("e");
+  on("cEdit", () => { $("cEditBox").classList.toggle("hidden"); if (!$("cEditBox").classList.contains("hidden")) cargarAdminsForm("e", p); });
   on("nSave", () => guard(async () => {
     const row = readPoolForm("n");
     if (!row.fecha || !row.titulo) { toast("Pon fecha y título"); return; }
-    const clave = $("nClave") ? $("nClave").value : "";
-    if (clave.length < 4) { toast("Pon una contraseña para el evento (mínimo 4 caracteres)"); $("nClave").focus(); return; }
     const {nombres, numeros} = parseNombres($("nLista").value);
     store.set("jugadoresIniciales", $("nLista").value);   // se recuerda para los siguientes eventos
     const data = await savePool(row);
-    await ponerClave(data, clave);
+    await guardarAdmins(data, "n", true);
     cloud.pools.unshift(data); await selectPool(data); cloud.vista = "evento";
     state.header = poolToHeader(data); save();
     const n = nombres.length ? await apuntarFijos(data, nombres, numeros) : 0;
@@ -788,6 +829,7 @@ function wireCloud(){
     const row = readPoolForm("e");
     if (!row.fecha || !row.titulo) { toast("Pon fecha y título"); return; }
     const data = await savePool(row, p.id);
+    await guardarAdmins(data, "e", false);
     cloud.pool = data; cloud.pools = cloud.pools.map(x => x.id === data.id ? data : x);
     state.header = poolToHeader(data); save();
     avisoGuardado(data, "☁ Evento actualizado en la web");

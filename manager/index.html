@@ -137,12 +137,6 @@ input[type=email],input[type=password],input[type=date],input[type=number]{width
 </style>
 </head>
 <body>
-<div class="lock" id="lock">
-  <h2>Sport Events Manager</h2>
-  <div style="font:15px system-ui;opacity:.9">Introduce el PIN</div>
-  <input type="password" id="pin" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" aria-label="PIN">
-  <div class="err" id="pinErr"></div><a href="../" style="color:#fff;opacity:.85;font:600 14px system-ui;text-decoration:none">‹ Volver a la web</a>
-</div>
 <header>
   <div class="toprow"><h1>Sport Events<small style="display:block;font-size:.55em;font-weight:600;opacity:.8;letter-spacing:.04em">MANAGER <span id="appVer" style="opacity:.8"></span></small></h1><button class="langbtn" id="bLang" type="button" aria-label="Idioma / Language"></button><button class="cloudbtn" id="cloudTab" title="Inicio" aria-label="Inicio">🏠</button><button class="reset" id="resetAll" title="Reset" aria-label="Reset">⟲</button></div>
   <div class="steps" id="steps">
@@ -1067,48 +1061,6 @@ restoreResult();
 go(0);
 </script>
 <script>
-// PIN de entrada: se comprueba en la base de datos (la APK no lo guarda); se pide cada vez que se abre la app
-(function(){
-  const lock = document.getElementById("lock"), inp = document.getElementById("pin"), err = document.getElementById("pinErr");
-  let ocupado = false;
-  // al cambiar de idioma la app se recarga: no se vuelve a pedir el PIN en la misma sesión
-  try { if (sessionStorage.getItem("pinOk")) { lock.remove(); return; } } catch (e) { }
-  // el creador del sistema (modo creador) no tiene ninguna restricción: si su sesión está guardada, no se pide el PIN
-  try {
-    const k = "sb.sb-yabgsoghquknuxwrfjaw-auth-token";
-    const ses = JSON.parse((window.Android && Android.getItem ? Android.getItem(k) : localStorage.getItem(k)) || "null");
-    const email = ses && ((ses.user && ses.user.email) || (ses.currentSession && ses.currentSession.user && ses.currentSession.user.email));
-    if (String(email || "").toLowerCase() === "vgonzalom@gmail.com") { lock.remove(); return; }
-  } catch (e) { }
-  inp.focus(); setTimeout(() => inp.focus(), 300);
-  const fallo = t => {
-    err.textContent = t; inp.value = ""; inp.disabled = false; inp.focus();
-    lock.classList.remove("shake"); void lock.offsetWidth; lock.classList.add("shake");
-  };
-  inp.oninput = async () => {
-    inp.value = inp.value.replace(/\D/g, "");
-    if (inp.value.length < 4) { err.textContent = ""; return; }
-    if (ocupado) return;
-    ocupado = true; inp.disabled = true; err.textContent = "Comprobando…";
-    try {
-      const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 12000);
-      const r = await fetch(SUPABASE_URL + "/rest/v1/rpc/comprobar_pin", {
-        method: "POST", signal: ctl.signal,
-        headers: {apikey: SUPABASE_KEY, Authorization: "Bearer " + SUPABASE_KEY, "Content-Type": "application/json"},
-        body: JSON.stringify({p_pin: inp.value})});
-      clearTimeout(t);
-      if (r.status === 404) { fallo("Falta ejecutar cambio_13_pin.sql en Supabase"); return; }
-      if (!r.ok) { fallo("No se ha podido comprobar el PIN. Reintenta"); return; }
-      const res = await r.json();
-      if (res === "ok") { try { sessionStorage.setItem("pinOk", "1"); } catch (e) { } lock.remove(); return; }
-      fallo(res === "bloqueado" ? "Demasiados intentos. Espera 15 minutos" : "PIN incorrecto");
-    } catch (e) {
-      fallo("Sin conexión. Revisa internet y reintenta");
-    } finally { ocupado = false; }
-  };
-})();
-</script>
-<script>
 // Botón de idioma (ES · EN): se guarda y se recarga la app en el idioma elegido
 (function(){
   const b = document.getElementById("bLang"), en = window.APP_LANG === "en";
@@ -1116,12 +1068,12 @@ go(0);
   b.onclick = () => {
     const v = JSON.stringify(en ? "es" : "en");
     try { if (window.Android && Android.setItem) Android.setItem("padel.lang", v); else localStorage.setItem("padel.lang", v); } catch (e) { }
-    try { sessionStorage.setItem("pinOk", "1"); } catch (e) { }
     location.href = location.pathname;
   };
 })();
 </script>
 <script src="supabase.min.js"></script>
 <script src="online.js"></script>
+<p style="text-align:center;margin:8px 0 24px"><a href="../" style="color:var(--muted);font:600 13px system-ui;text-decoration:none">‹ Volver a la web</a></p>
 </body>
 </html>
