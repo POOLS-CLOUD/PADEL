@@ -101,6 +101,7 @@ h2 small{font:500 13px var(--fb);color:var(--muted)}
 .n{min-width:1.9em;text-align:right;color:var(--muted);font-weight:600;font-variant-numeric:tabular-nums;flex:none}
 .nm{flex:1;min-width:0;overflow-wrap:anywhere;font-weight:500}
 .free .nm{color:var(--muted);font-weight:400;font-style:italic}
+.nocourt{font-size:11px;font-weight:700;color:var(--warn);background:var(--warn-soft);border-radius:6px;padding:2px 6px;flex:none;white-space:nowrap}
 .me{font-size:11px;font-weight:700;color:var(--accent);background:var(--accent-soft);border-radius:6px;padding:2px 6px;flex:none}
 .del{border:0;background:transparent;color:var(--warn);font:600 14px var(--fb);padding:10px 4px;min-height:44px;cursor:pointer;flex:none}
 .empty{color:var(--muted);font-size:15px;padding:14px}
@@ -255,7 +256,8 @@ const TXT = {
     full: "🟢 Completa", poolFull: "🟢 Completa", inReserve: n => `${n} en reservas`,
     padel: "🎾 Pádel", tenis: "🎾 Tenis",
     deletedTitle: "Este evento ya no existe", deletedNote: "El organizador lo ha borrado. ", seeAvailable: "Ver las competiciones disponibles",
-    draw: "🎲 Sorteo", drawSmall: "pistas y parejas", court: n => `Pista ${n}`, pair: n => `Pareja ${n}`, noCourt: "⏳ Sin pista: ",
+    draw: "🎲 Sorteo", drawSmall: "pistas y parejas", court: n => `Pista ${n}`, pair: n => `Pareja ${n}`, noCourt: "⏳ Sin pista: ", noCourtTag: "sin pista",
+    noCourtNow: (n, nombres) => `⏳ Ahora mismo ${n === 1 ? "se quedaría" : "se quedarían"} sin pista: ${nombres}. Solo se juegan pistas completas (de 4) y se entra por orden de inscripción; el sorteo de parejas y pistas es aleatorio entre los que entran.`,
     closedNote: "La inscripción está cerrada. El sorteo aparecerá aquí en cuanto el organizador lo haga.",
     you: "TÚ", removeMe: "Borrarme",
     pairsTitle: "Las parejas", pairsSmall: "ponte al lado de tu compañero",
@@ -300,7 +302,8 @@ const TXT = {
     full: "🟢 Full", poolFull: "🟢 Full", inReserve: n => `${n} on the waiting list`,
     padel: "🎾 Padel", tenis: "🎾 Tennis",
     deletedTitle: "This event no longer exists", deletedNote: "The organiser has deleted it. ", seeAvailable: "See the available competitions",
-    draw: "🎲 Draw", drawSmall: "courts and pairs", court: n => `Court ${n}`, pair: n => `Pair ${n}`, noCourt: "⏳ No court: ",
+    draw: "🎲 Draw", drawSmall: "courts and pairs", court: n => `Court ${n}`, pair: n => `Pair ${n}`, noCourt: "⏳ No court: ", noCourtTag: "no court",
+    noCourtNow: (n, nombres) => `⏳ Right now ${n === 1 ? "this player would be" : "these players would be"} left without a court: ${nombres}. Only full courts (of 4) are played and places go by sign-up order; pairs and courts are then drawn at random among those who are in.`,
     closedNote: "Registration is closed. The draw will appear here as soon as the organiser makes it.",
     you: "YOU", removeMe: "Remove me",
     pairsTitle: "The pairs", pairsSmall: "sign up next to your partner",
@@ -593,7 +596,11 @@ function vistaPool(){
   } else {
     const free = [];
     for (let k = lista.length; k < max; k++) free.push(h("li", {class: "free"}, h("span", {class: "n"}, (k + 1) + "."), h("span", {class: "nm"}, T().free)));
-    main.append(h("section", {}, h("h2", {}, T().list, h("small", {}, T().listSmall)), h("ol", {class: "list"}, lista.map((i, k) => row(i, k + 1)), free)));
+    // sin sorteo todavía: solo entran las pistas completas, por orden de inscripción
+    const enPistas = Math.floor(lista.length / 4) * 4, fuera = !D.resultados.length && lista.length >= 4 ? lista.slice(enPistas) : [];
+    const fila = (i, k) => { const li = row(i, k + 1); if (k >= enPistas && fuera.length) li.insertBefore(h("span", {class: "nocourt"}, T().noCourtTag), li.children[2] || null); return li; };
+    main.append(h("section", {}, h("h2", {}, T().list, h("small", {}, T().listSmall)), h("ol", {class: "list"}, lista.map(fila), free),
+      fuera.length ? h("div", {class: "note warn", style: "margin-top:10px"}, T().noCourtNow(fuera.length, fuera.map(i => i.nombre).join(", "))) : null));
     main.append(h("section", {}, h("h2", {}, T().reserves, h("small", {}, T().reservesSmall)),
       reservas.length ? h("ol", {class: "list"}, reservas.map((i, k) => row(i, "R" + (k + 1)))) : h("div", {class: "list"}, h("div", {class: "empty"}, T().noReserves))));
   }
