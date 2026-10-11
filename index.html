@@ -101,6 +101,7 @@ h2 small{font:500 13px var(--fb);color:var(--muted)}
 .n{min-width:1.9em;text-align:right;color:var(--muted);font-weight:600;font-variant-numeric:tabular-nums;flex:none}
 .nm{flex:1;min-width:0;overflow-wrap:anywhere;font-weight:500}
 .free .nm{color:var(--muted);font-weight:400;font-style:italic}
+.conf{color:var(--ok);font-weight:800}
 .nocourt{font-size:11px;font-weight:700;color:var(--warn);background:var(--warn-soft);border-radius:6px;padding:2px 6px;flex:none;white-space:nowrap}
 .me{font-size:11px;font-weight:700;color:var(--accent);background:var(--accent-soft);border-radius:6px;padding:2px 6px;flex:none}
 .del{border:0;background:transparent;color:var(--warn);font:600 14px var(--fb);padding:10px 4px;min-height:44px;cursor:pointer;flex:none}
@@ -244,7 +245,7 @@ const $ = id => document.getElementById(id);
 const TXT = {
   es: {
     back: "‹ Todas las competiciones", loading: "Cargando…", share: "📤 Compartir", join: "Apuntarme", close: "Cerrar",
-    createdBy: "Creado por", privacy: "¿Cómo tratamos tus datos?", nameLabel: "Nombre", namePh: "Ej.: Juan García", hintName: "Escribe tu nombre como te conocen en el grupo.",
+    createdBy: "Creado por", confirmed: "Plaza confirmada por el organizador", privacy: "¿Cómo tratamos tus datos?", nameLabel: "Nombre", namePh: "Ej.: Juan García", hintName: "Escribe tu nombre como te conocen en el grupo.",
     demo: "Vista de ejemplo · datos inventados", listTitle: "Próximas competiciones", listMeta: "Elige tu competición y apúntate.",
     noPools: "Ahora mismo no hay ninguna competición. En cuanto el organizador cree la siguiente, aparecerá aquí.",
     previous: "Anteriores", previousSmall: "resultados de los sorteos",
@@ -290,7 +291,7 @@ const TXT = {
   },
   en: {
     back: "‹ All competitions", loading: "Loading…", share: "📤 Share", join: "Sign me up", close: "Close",
-    createdBy: "Created by", privacy: "How do we handle your data?", nameLabel: "Name", namePh: "E.g. John Smith", hintName: "Type your name as the group knows you.",
+    createdBy: "Created by", confirmed: "Place confirmed by the organiser", privacy: "How do we handle your data?", nameLabel: "Name", namePh: "E.g. John Smith", hintName: "Type your name as the group knows you.",
     demo: "Sample view · made-up data", listTitle: "Upcoming competitions", listMeta: "Choose your competition and sign up.",
     noPools: "There are no competitions right now. As soon as the organiser creates the next one, it will appear here.",
     previous: "Previous", previousSmall: "draw results",
@@ -408,9 +409,9 @@ function supabaseBackend(){
       const [a, b, c] = await Promise.all([
         (async () => {   // columnas nuevas primero; si la base de datos aún no las tiene, sin ellas
           let r;
-          for (const cols of ["id,nombre,created_at,posicion,reserva", "id,nombre,created_at,posicion", "id,nombre,created_at"]) {
+          for (const cols of ["id,nombre,created_at,posicion,reserva,confirmado", "id,nombre,created_at,posicion,reserva", "id,nombre,created_at,posicion", "id,nombre,created_at"]) {
             r = await sb.from("inscripciones").select(cols).eq("pool_id", pool.id).order("created_at");
-            if (!r.error || !/reserva|posicion/.test(r.error.message || "")) break;
+            if (!r.error || !/reserva|posicion|confirmado/.test(r.error.message || "")) break;
           }
           return r; })(),
         sb.from("movimientos").select("tipo,nombre,created_at").eq("pool_id", pool.id).order("created_at", {ascending:false}).limit(30),
@@ -553,7 +554,7 @@ function vistaPool(){
   // borrarse: con la inscripción abierta, todos; tras el sorteo, solo las reservas
   const mine = mias(), soloReservas = ep === "reservas", enReserva = new Set(reservas.map(i => i.id));
   const puedeBorrarA = i => p.estado === "abierta" || (soloReservas && enReserva.has(i.id));
-  const row = (i, n) => h("li", {}, h("span", {class: "n"}, n + "."), h("span", {class: "nm"}, i.nombre),
+  const row = (i, n) => h("li", {}, h("span", {class: "n"}, n + "."), h("span", {class: "nm"}, i.nombre, i.confirmado ? h("span", {class: "conf", title: T().confirmed}, " ✓") : null),
     mine[i.id] ? h("span", {class: "me"}, T().you) : null,
     mine[i.id] && puedeBorrarA(i) ? h("button", {class: "del", type: "button", onclick: () => quitar(i)}, T().removeMe) : null);
 
