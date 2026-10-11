@@ -76,6 +76,7 @@ main{padding-top:18px;padding-bottom:8px;display:grid;gap:24px}
 /* créditos al pie; deja sitio a la barra fija de «Apuntarme» cuando se ve */
 .credits{text-align:center;color:var(--muted);font-size:13px;padding-top:20px;padding-bottom:calc(110px + var(--sab))}
 .credits b{font-weight:700;color:var(--ink)}
+.credits a{display:inline-block;margin-top:6px;font-size:12px;color:var(--muted);text-decoration:underline;text-underline-offset:2px}
 main.noBar + .credits{padding-bottom:calc(28px + var(--sab))}
 h2{font:700 20px/1.2 var(--fd);letter-spacing:-.01em;margin:0 0 8px;display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px}
 h2 small{font:500 13px var(--fb);color:var(--muted)}
@@ -207,7 +208,7 @@ input[type=text],input[type=tel]{font:16px var(--fb);color:var(--ink);background
 <main class="wrap noBar" id="main">
   <div class="loading">…</div>
 </main>
-<footer class="credits wrap"><span id="createdBy">Creado por</span> <b>VicenteG</b></footer>
+<footer class="credits wrap"><span id="createdBy">Creado por</span> <b>VicenteG</b><br><a href="privacidad.html" id="privLink">¿Cómo tratamos tus datos?</a></footer>
 
 <div class="actions" id="actions" hidden><div class="wrap">
   <button class="btn primary" id="bJoin" type="button">Apuntarme</button>
@@ -242,7 +243,7 @@ const $ = id => document.getElementById(id);
 const TXT = {
   es: {
     back: "‹ Todas las competiciones", loading: "Cargando…", share: "📤 Compartir", join: "Apuntarme", close: "Cerrar",
-    createdBy: "Creado por", nameLabel: "Nombre", namePh: "Ej.: Juan García", hintName: "Escribe tu nombre como te conocen en el grupo.",
+    createdBy: "Creado por", privacy: "¿Cómo tratamos tus datos?", nameLabel: "Nombre", namePh: "Ej.: Juan García", hintName: "Escribe tu nombre como te conocen en el grupo.",
     demo: "Vista de ejemplo · datos inventados", listTitle: "Próximas competiciones", listMeta: "Elige tu competición y apúntate.",
     noPools: "Ahora mismo no hay ninguna competición. En cuanto el organizador cree la siguiente, aparecerá aquí.",
     previous: "Anteriores", previousSmall: "resultados de los sorteos",
@@ -287,7 +288,7 @@ const TXT = {
   },
   en: {
     back: "‹ All competitions", loading: "Loading…", share: "📤 Share", join: "Sign me up", close: "Close",
-    createdBy: "Created by", nameLabel: "Name", namePh: "E.g. John Smith", hintName: "Type your name as the group knows you.",
+    createdBy: "Created by", privacy: "How do we handle your data?", nameLabel: "Name", namePh: "E.g. John Smith", hintName: "Type your name as the group knows you.",
     demo: "Sample view · made-up data", listTitle: "Upcoming competitions", listMeta: "Choose your competition and sign up.",
     noPools: "There are no competitions right now. As soon as the organiser creates the next one, it will appear here.",
     previous: "Previous", previousSmall: "draw results",
@@ -344,7 +345,7 @@ function textosFijos(){
   $("sJoinT").firstChild.textContent = T().join + " ";
   document.querySelector("#sJoin .x").setAttribute("aria-label", T().close);
   document.querySelector("#sJoin .field span").textContent = T().nameLabel;
-  $("createdBy").textContent = T().createdBy;
+  $("createdBy").textContent = T().createdBy; $("privLink").textContent = T().privacy;
   $("fName").placeholder = T().namePh; $("fSend").textContent = T().join;
   $("fPhoneL").textContent = T().phoneLabel; $("fPhone").placeholder = T().phonePh; $("fPhoneN").textContent = T().phoneNote;
 }
