@@ -58,6 +58,9 @@ h1{font:800 clamp(26px,7.5vw,34px)/1.1 var(--fd);letter-spacing:-.02em;margin:6p
 .stats{display:flex;flex-wrap:wrap;gap:6px;margin-top:14px}
 .pill{display:inline-flex;align-items:center;border-radius:999px;padding:4px 10px;font-size:12.5px;font-weight:600;background:rgba(255,255,255,.13);font-variant-numeric:tabular-nums;white-space:nowrap}
 .pill.ok{background:var(--ok);color:#fff} .pill.warn{background:var(--warn);color:#fff} .pill.done{background:#7FB2F0;color:#0B1A2E}
+.sharebtn{margin-top:14px;display:inline-flex;align-items:center;gap:8px;border:1px solid rgba(255,255,255,.35);background:rgba(255,255,255,.12);color:var(--head-ink);
+  border-radius:999px;padding:9px 16px;min-height:44px;font:600 15px var(--fb);cursor:pointer}
+.sharebtn:active{background:rgba(255,255,255,.22)}
 .bar{height:6px;border-radius:99px;background:rgba(255,255,255,.15);margin-top:14px;overflow:hidden}
 .bar i{display:block;height:100%;background:#7FB2F0;border-radius:99px;transition:width .4s}
 
@@ -185,6 +188,7 @@ input[type=text]{font:16px var(--fb);color:var(--ink);background:var(--bg);borde
   <div class="meta" id="meta"></div>
   <div class="notas" id="notas" hidden></div>
   <div class="stats" id="stats"></div>
+  <button class="sharebtn" id="bShare" type="button" hidden>📤 Compartir</button>
   <div class="bar" id="bar" hidden><i id="barFill" style="width:0"></i></div>
 </div></header>
 
@@ -340,7 +344,7 @@ async function vistaListado(){
   $("back").hidden = true;
   $("eyebrow").textContent = DEMO ? "Vista de ejemplo · datos inventados" : "";
   $("eyebrow").hidden = !DEMO;
-  $("top").classList.add("hero");
+  $("top").classList.add("hero"); $("bShare").hidden = true;
   $("title").textContent = "Próximas competiciones";
   $("meta").textContent = "Elige tu competición y apúntate.";
   document.title = "Próximas competiciones";
@@ -371,6 +375,7 @@ let POOL = null, D = {inscritos: [], movimientos: [], resultados: []};
 const mias = () => store.get("mias", {});
 
 function vistaBorrada(){
+  $("bShare").hidden = true;
   $("actions").hidden = true; $("bar").hidden = true; $("stats").replaceChildren(); $("notas").hidden = true;
   $("eyebrow").hidden = true; $("title").textContent = "Esta pool ya no existe"; $("meta").textContent = "";
   document.title = "Pools de Pádel";
@@ -379,7 +384,7 @@ function vistaBorrada(){
 }
 let slotElegido = null;   // hueco elegido al apuntarse en un evento de parejas fijas
 function vistaPool(){
-  $("top").classList.remove("hero");
+  $("top").classList.remove("hero"); $("bShare").hidden = false;
   const p = POOL, max = p.max_jugadores, fijas = !!p.parejas_fijas;
   // con parejas fijas cada uno ocupa un hueco (posición); si no, por orden de inscripción
   const lista = fijas ? D.inscritos.filter(i => i.posicion != null && i.posicion < max) : D.inscritos.slice(0, max);
@@ -456,6 +461,31 @@ function vistaPool(){
   $("bJoin").textContent = yaApuntado ? "Ya hay 2 apuntados desde este móvil" : lleno ? "Lista y reservas completas"
     : desdeAqui ? (lista.length >= max ? "Apuntar a otra persona (reservas)" : "Apuntar a otra persona") : lista.length >= max ? "Apuntarme a reservas" : "Apuntarme";
 }
+
+/* ---------- compartir el enlace del evento ---------- */
+function textoCompartir(p){
+  const f = fecha(p.fecha).toLocaleDateString("es-ES", {day: "2-digit", month: "2-digit", year: "numeric"});
+  return [p.titulo, `📅 ${f}${p.horario ? " · " + p.horario : ""}`, p.importe, p.club && "📍 " + p.club].filter(Boolean).join("\n");
+}
+async function compartir(){
+  const p = POOL; if (!p) return;
+  const url = location.origin + location.pathname + (DEMO ? "?demo&pool=" : "?pool=") + p.codigo;
+  const texto = textoCompartir(p) + "\n\n🎾 Apúntate aquí 👉";
+  if (navigator.share) { try { await navigator.share({title: p.titulo, text: texto, url}); return; } catch(e) { if (e && e.name === "AbortError") return; } }
+  const todo = texto + " " + url;
+  const s = h("div", {class: "sheet"}, h("div", {class: "panel", role: "dialog"},
+    h("h3", {}, "Compartir", h("button", {class: "x", type: "button", "aria-label": "Cerrar", onclick: () => s.remove()}, "×")),
+    h("p", {}, "Envía el enlace del evento para que se apunten."),
+    h("div", {class: "stack"},
+      h("a", {class: "btn primary", href: "https://wa.me/?text=" + encodeURIComponent(todo), target: "_blank", rel: "noopener", onclick: () => s.remove()}, "📲 WhatsApp"),
+      h("button", {class: "btn", type: "button", onclick: async () => {
+        try { await navigator.clipboard.writeText(todo); toast("Enlace copiado"); }
+        catch(e) { const ta = h("textarea", {}); ta.value = todo; document.body.append(ta); ta.select(); document.execCommand("copy"); ta.remove(); toast("Enlace copiado"); }
+        s.remove(); }}, "🔗 Copiar enlace"))));
+  s.addEventListener("click", e => { if (e.target === s) s.remove(); });
+  document.body.append(s);
+}
+$("bShare").onclick = compartir;
 
 /* ---------- apuntarse / borrarse ---------- */
 const sheet = $("sJoin");
