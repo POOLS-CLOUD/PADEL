@@ -259,7 +259,7 @@ const TXT = {
     reservesOnlyNote: "El sorteo ya está realizado: la lista está cerrada, pero aún puedes apuntarte como reserva dejando tu nombre y teléfono de contacto para ser avisado (el teléfono solo será visible para el administrador).",
     phoneLabel: "Teléfono de contacto", phoneOpt: "(opcional, pero recomendable)", phoneReq: "(obligatorio)", phonePh: "Ej.: 600 123 456", phoneNote: "🔒 Tu teléfono solo será visible para el administrador, para avisarte si hay cambios o queda una plaza libre.", errPhone: "Escribe tu teléfono de contacto.", errPhoneBad: "Ese teléfono no parece correcto.",
     tipos: {mixto: "👫 Parejas mixtas", chicos: "👬 Parejas masculinas", chicas: "👭 Parejas femeninas", aleatorio: "🎲 Parejas aleatorias", fijas: "🤝 Parejas fijas"},
-    courts: n => `🎾 ${n} pista${n === 1 ? "" : "s"}`, players: (a, b) => `${a} / ${b} jugadores`,
+    courts: n => `🎾 ${n} pista${n === 1 ? "" : "s"}`, players: (a, b) => `${a} / ${b} jugadores`, freeSpots: n => `🟢 ${n} plaza${n === 1 ? "" : "s"} libre${n === 1 ? "" : "s"}`,
     full: "🟢 Completa", poolFull: "🟢 Completa", inReserve: n => `${n} en reservas`,
     padel: "🎾 Pádel", tenis: "🎾 Tenis",
     deletedTitle: "Este evento ya no existe", deletedNote: "El organizador lo ha borrado. ", seeAvailable: "Ver las competiciones disponibles",
@@ -305,7 +305,7 @@ const TXT = {
     reservesOnlyNote: "The draw has been made: the list is closed, but you can still join the waiting list by leaving your name and a contact phone number so we can let you know (the phone number will only be visible to the administrator).",
     phoneLabel: "Contact phone", phoneOpt: "(optional, but recommended)", phoneReq: "(required)", phonePh: "E.g. 600 123 456", phoneNote: "🔒 Your phone number will only be visible to the administrator, to let you know about changes or if a place becomes free.", errPhone: "Type your contact phone number.", errPhoneBad: "That phone number doesn't look right.",
     tipos: {mixto: "👫 Mixed pairs", chicos: "👬 Men's pairs", chicas: "👭 Women's pairs", aleatorio: "🎲 Random pairs", fijas: "🤝 Fixed pairs"},
-    courts: n => `🎾 ${n} court${n === 1 ? "" : "s"}`, players: (a, b) => `${a} / ${b} players`,
+    courts: n => `🎾 ${n} court${n === 1 ? "" : "s"}`, players: (a, b) => `${a} / ${b} players`, freeSpots: n => `🟢 ${n} free place${n === 1 ? "" : "s"}`,
     full: "🟢 Full", poolFull: "🟢 Full", inReserve: n => `${n} on the waiting list`,
     padel: "🎾 Padel", tenis: "🎾 Tennis",
     deletedTitle: "This event no longer exists", deletedNote: "The organiser has deleted it. ", seeAvailable: "See the available competitions",
@@ -516,7 +516,8 @@ async function vistaListado(){
       h("div", {class: "row"}, h("span", {class: "tag " + est[1]}, est[0]), p.sorteado ? h("span", {class: "tag drawn"}, T().drawDone) : null,
         tipoSorteo(p) ? h("span", {class: "tag"}, tipoSorteo(p)) : null,
         h("span", {class: "tag"}, T().courts(Math.floor(p.max_jugadores / 4))), h("span", {class: "tag"}, T().players(lleno, p.max_jugadores)),
-        lleno >= p.max_jugadores && p.estado === "abierta" ? h("span", {class: "tag open"}, T().full) : null, res ? h("span", {class: "tag"}, T().inReserve(res)) : null),
+        lleno >= p.max_jugadores && p.estado === "abierta" ? h("span", {class: "tag open"}, T().full) : null,
+        lleno < p.max_jugadores && p.estado === "abierta" ? h("span", {class: "tag open"}, T().freeSpots(p.max_jugadores - lleno)) : null, res ? h("span", {class: "tag"}, T().inReserve(res)) : null),
       h("div", {class: "mini"}, h("i", {style: `width:${lleno / p.max_jugadores * 100}%`})));
   };
   const main = $("main"); main.replaceChildren();
