@@ -102,6 +102,10 @@ h2 small{font:500 13px var(--fb);color:var(--muted)}
 .nm{flex:1;min-width:0;overflow-wrap:anywhere;font-weight:500}
 .free .nm{color:var(--muted);font-weight:400;font-style:italic}
 .conf{color:var(--ok);font-weight:800}
+.nm .subtag{display:block;margin-top:3px}
+.pend{white-space:nowrap;font-size:11px;font-weight:700;color:var(--warn);background:var(--warn-soft);border-radius:6px;padding:2px 6px;display:inline-block}
+.confok{white-space:nowrap;font-size:11px;font-weight:700;color:var(--ok);background:var(--ok-soft);border-radius:6px;padding:2px 6px;display:inline-block}
+.confbtn{display:block;margin-top:5px;border:0;border-radius:8px;padding:7px 12px;font:700 13px var(--fb);background:var(--ok);color:#fff;cursor:pointer}
 .nocourt{font-size:11px;font-weight:700;color:var(--warn);background:var(--warn-soft);border-radius:6px;padding:2px 6px;flex:none;white-space:nowrap}
 .me{font-size:11px;font-weight:700;color:var(--accent);background:var(--accent-soft);border-radius:6px;padding:2px 6px;flex:none}
 .del{border:0;background:transparent;color:var(--warn);font:600 14px var(--fb);padding:10px 4px;min-height:44px;cursor:pointer;flex:none}
@@ -245,7 +249,7 @@ const $ = id => document.getElementById(id);
 const TXT = {
   es: {
     back: "‹ Todas las competiciones", loading: "Cargando…", share: "📤 Compartir", join: "Apuntarme", close: "Cerrar",
-    createdBy: "Creado por", confirmed: "Plaza confirmada por el organizador", privacy: "¿Cómo tratamos tus datos?", nameLabel: "Nombre", namePh: "Ej.: Juan García", hintName: "Escribe tu nombre como te conocen en el grupo.",
+    createdBy: "Creado por", confirmed: "Plaza confirmada por el organizador", pendingConf: "⏳ Pendiente de confirmar", confirmedTag: "✓ Ha confirmado asistencia", confirmBtn: "✓ Confirmo que juego", confirmedToast: "¡Gracias! Tu asistencia queda confirmada ✓", privacy: "¿Cómo tratamos tus datos?", nameLabel: "Nombre", namePh: "Ej.: Juan García", hintName: "Escribe tu nombre como te conocen en el grupo.",
     demo: "Vista de ejemplo · datos inventados", listTitle: "Próximas competiciones", listMeta: "Elige tu competición y apúntate.",
     noPools: "Ahora mismo no hay ninguna competición. En cuanto el organizador cree la siguiente, aparecerá aquí.",
     previous: "Anteriores", previousSmall: "resultados de los sorteos",
@@ -291,7 +295,7 @@ const TXT = {
   },
   en: {
     back: "‹ All competitions", loading: "Loading…", share: "📤 Share", join: "Sign me up", close: "Close",
-    createdBy: "Created by", confirmed: "Place confirmed by the organiser", privacy: "How do we handle your data?", nameLabel: "Name", namePh: "E.g. John Smith", hintName: "Type your name as the group knows you.",
+    createdBy: "Created by", confirmed: "Place confirmed by the organiser", pendingConf: "⏳ Awaiting confirmation", confirmedTag: "✓ Attendance confirmed", confirmBtn: "✓ I confirm I'm playing", confirmedToast: "Thanks! Your attendance is confirmed ✓", privacy: "How do we handle your data?", nameLabel: "Name", namePh: "E.g. John Smith", hintName: "Type your name as the group knows you.",
     demo: "Sample view · made-up data", listTitle: "Upcoming competitions", listMeta: "Choose your competition and sign up.",
     noPools: "There are no competitions right now. As soon as the organiser creates the next one, it will appear here.",
     previous: "Previous", previousSmall: "draw results",
@@ -409,9 +413,9 @@ function supabaseBackend(){
       const [a, b, c] = await Promise.all([
         (async () => {   // columnas nuevas primero; si la base de datos aún no las tiene, sin ellas
           let r;
-          for (const cols of ["id,nombre,created_at,posicion,reserva,confirmado", "id,nombre,created_at,posicion,reserva", "id,nombre,created_at,posicion", "id,nombre,created_at"]) {
+          for (const cols of ["id,nombre,created_at,posicion,reserva,confirmado,subio", "id,nombre,created_at,posicion,reserva,confirmado", "id,nombre,created_at,posicion,reserva", "id,nombre,created_at,posicion", "id,nombre,created_at"]) {
             r = await sb.from("inscripciones").select(cols).eq("pool_id", pool.id).order("created_at");
-            if (!r.error || !/reserva|posicion|confirmado/.test(r.error.message || "")) break;
+            if (!r.error || !/reserva|posicion|confirmado|subio/.test(r.error.message || "")) break;
           }
           return r; })(),
         sb.from("movimientos").select("tipo,nombre,created_at").eq("pool_id", pool.id).order("created_at", {ascending:false}).limit(30),
@@ -424,6 +428,7 @@ function supabaseBackend(){
         .on("postgres_changes", {event:"*", schema:"public", table:"inscripciones", filter:"pool_id=eq." + pool.id}, cb)
         .on("postgres_changes", {event:"*", schema:"public", table:"pools"}, cb)   // incluye el borrado de la pool
         .on("postgres_changes", {event:"*", schema:"public", table:"resultados", filter:"pool_id=eq." + pool.id}, cb)
+        .on("postgres_changes", {event:"INSERT", schema:"public", table:"movimientos", filter:"pool_id=eq." + pool.id}, cb)   // altas y bajas al momento
         .subscribe();
     },
     escucharListado(cb){
@@ -445,6 +450,7 @@ function supabaseBackend(){
       return ok(r);
     },
     async borrarse(id, token){ return ok(await sb.rpc("borrarse", {p_id: id, p_token: token})); },
+    async confirmarPlaza(id, token){ return ok(await sb.rpc("confirmar_plaza", {p_id: id, p_token: token})); },
   };
 }
 
@@ -473,6 +479,7 @@ function demoBackend(){
       const r = {id: "n" + Date.now(), nombre, posicion: posicion ?? null, reserva: p.estado === "sorteada" && posicion == null, created_at: new Date().toISOString()}; p.ins.push(r); setTimeout(cb, 50); return {id: r.id, token: "demo"};
     },
     async borrarse(id){ P.forEach(p => p.ins = p.ins.filter(i => i.id !== id)); setTimeout(cb, 50); return true; },
+    async confirmarPlaza(id){ P.forEach(p => p.ins.forEach(i => { if (i.id === id) i.confirmado = true; })); setTimeout(cb, 50); return true; },
   };
 }
 
@@ -554,7 +561,10 @@ function vistaPool(){
   // borrarse: con la inscripción abierta, todos; tras el sorteo, solo las reservas
   const mine = mias(), soloReservas = ep === "reservas", enReserva = new Set(reservas.map(i => i.id));
   const puedeBorrarA = i => p.estado === "abierta" || (soloReservas && enReserva.has(i.id));
-  const row = (i, n) => h("li", {}, h("span", {class: "n"}, n + "."), h("span", {class: "nm"}, i.nombre, i.confirmado ? h("span", {class: "conf", title: T().confirmed}, " ✓") : null),
+  const estadoConf = i => i.subio || i.confirmado ? h("span", {class: "subtag"},
+      i.confirmado ? h("span", {class: "confok"}, T().confirmedTag) : h("span", {class: "pend"}, T().pendingConf),
+      !i.confirmado && i.subio && mine[i.id] ? h("button", {class: "confbtn", type: "button", onclick: () => confirmarPlaza(i)}, T().confirmBtn) : null) : null;
+  const row = (i, n) => h("li", {}, h("span", {class: "n"}, n + "."), h("span", {class: "nm"}, i.nombre, estadoConf(i)),
     mine[i.id] ? h("span", {class: "me"}, T().you) : null,
     mine[i.id] && puedeBorrarA(i) ? h("button", {class: "del", type: "button", onclick: () => quitar(i)}, T().removeMe) : null);
 
@@ -692,6 +702,12 @@ function confirmar(texto, si){
         h("button", {class: "btn", type: "button", onclick: () => { s.remove(); res(false); }}, T().cancel))));
     document.body.append(s);
   });
+}
+async function confirmarPlaza(i){
+  try {
+    const ok = await api.confirmarPlaza(i.id, mias()[i.id]);
+    toast(ok ? T().confirmedToast : T().notThere); await cargar();
+  } catch(e) { toast(errText(e)); }
 }
 async function quitar(i){
   if (!await confirmar(T().confirmRemove(i.nombre), T().yesRemove)) return;
