@@ -239,6 +239,7 @@ const TXT = {
     noPools: "Ahora mismo no hay ninguna competición. En cuanto el organizador cree la siguiente, aparecerá aquí.",
     previous: "Anteriores", previousSmall: "resultados de los sorteos",
     open: "Inscripción abierta", closed: "Inscripción cerrada", drawn: "Sorteo hecho", drawDone: "🎲 Sorteo hecho",
+    tipos: {mixto: "👫 Parejas mixtas", chicos: "👬 Parejas de chicos", chicas: "👭 Parejas de chicas", aleatorio: "🎲 Parejas aleatorias", fijas: "🤝 Parejas fijas"},
     courts: n => `🎾 ${n} pista${n === 1 ? "" : "s"}`, players: (a, b) => `${a} / ${b} jugadores`,
     full: "🟢 Completa", poolFull: "🟢 Completa", inReserve: n => `${n} en reservas`,
     padel: "🎾 Pádel", tenis: "🎾 Tenis",
@@ -281,6 +282,7 @@ const TXT = {
     noPools: "There are no competitions right now. As soon as the organiser creates the next one, it will appear here.",
     previous: "Previous", previousSmall: "draw results",
     open: "Registration open", closed: "Registration closed", drawn: "Draw done", drawDone: "🎲 Draw done",
+    tipos: {mixto: "👫 Mixed pairs", chicos: "👬 Men's pairs", chicas: "👭 Women's pairs", aleatorio: "🎲 Random pairs", fijas: "🤝 Fixed pairs"},
     courts: n => `🎾 ${n} court${n === 1 ? "" : "s"}`, players: (a, b) => `${a} / ${b} players`,
     full: "🟢 Full", poolFull: "🟢 Full", inReserve: n => `${n} on the waiting list`,
     padel: "🎾 Padel", tenis: "🎾 Tennis",
@@ -411,7 +413,7 @@ function demoBackend(){
   const t0 = Date.now() - 36e5 * 20;
   const mk = (codigo, titulo, f, estado, n, max) => ({id: codigo, codigo, titulo, horario: "21:30-23:00", importe: "6€ PERSONA", fecha: f, max_jugadores: max, max_reservas: 10, estado,
     ins: N.slice(0, n).map((x, i) => ({id: codigo + i, nombre: x, created_at: new Date(t0 + i * 36e5).toISOString()}))});
-  const P = [Object.assign(mk("DEMO2", "PARTIDO JUEVES 15 OCT", "2026-10-15", "abierta", 6, 8), {notas: "Traed bolas nuevas", deporte: "tenis", club: "Club de Raqueta de Benalmádena"}), mk("DEMO", "POOL MARTES 13 OCT", "2026-10-13", "abierta", 17, 20), mk("DEMO0", "POOL MARTES 6 OCT", "2026-10-06", "sorteada", 8, 8)];
+  const P = [Object.assign(mk("DEMO2", "PARTIDO JUEVES 15 OCT", "2026-10-15", "abierta", 6, 8), {notas: "Traed bolas nuevas", deporte: "tenis", club: "Club de Raqueta de Benalmádena"}), Object.assign(mk("DEMO", "POOL MARTES 13 OCT", "2026-10-13", "abierta", 17, 20), {tipo_sorteo: "mixto"}), mk("DEMO0", "POOL MARTES 6 OCT", "2026-10-06", "sorteada", 8, 8)];
   const fijas = Object.assign(mk("DEMO3", "POOL DEL VIERNES", "2026-10-16", "abierta", 0, 8), {parejas_fijas: true});
   fijas.ins = [["Juan", 0], ["Ana", 1], ["Luis", 2], ["Pedro", 4], ["Sara", 5]].map(([n, pos], i) => ({id: "f" + i, nombre: n, posicion: pos, created_at: new Date(t0 + i * 36e5).toISOString()}));
   P.push(fijas);
@@ -462,6 +464,7 @@ async function vistaListado(){
       p.club ? h("div", {class: "m"}, "📍 " + p.club) : null,
       p.notas ? h("div", {class: "nt"}, p.notas) : null,
       h("div", {class: "row"}, h("span", {class: "tag " + est[1]}, est[0]), p.sorteado ? h("span", {class: "tag drawn"}, T().drawDone) : null,
+        tipoSorteo(p) ? h("span", {class: "tag"}, tipoSorteo(p)) : null,
         h("span", {class: "tag"}, T().courts(Math.floor(p.max_jugadores / 4))), h("span", {class: "tag"}, T().players(lleno, p.max_jugadores)),
         lleno >= p.max_jugadores && p.estado === "abierta" ? h("span", {class: "tag open"}, T().full) : null, res ? h("span", {class: "tag"}, T().inReserve(res)) : null),
       h("div", {class: "mini"}, h("i", {style: `width:${lleno / p.max_jugadores * 100}%`})));
@@ -485,6 +488,8 @@ function vistaBorrada(){
   $("main").className = "wrap noBar";
   $("main").replaceChildren(h("div", {class: "note"}, T().deletedNote, h("a", {href: DEMO ? "./?demo" : "./"}, T().seeAvailable)));
 }
+// tipo de sorteo elegido por el organizador (parejas fijas manda sobre el resto)
+const tipoSorteo = p => T().tipos[p.parejas_fijas ? "fijas" : p.tipo_sorteo] || null;
 let slotElegido = null;   // hueco elegido al apuntarse en un evento de parejas fijas
 function vistaPool(){
   $("top").classList.remove("hero"); $("bShare").hidden = false;
@@ -501,7 +506,7 @@ function vistaPool(){
   $("notas").hidden = !p.notas; $("notas").textContent = p.notas || "";
   const ep = estadoPublico(p);
   const est = ep === "cerrada" ? [T().closed, "warn"] : lista.length >= max ? [T().poolFull, "ok"] : [T().open, ""];
-  $("stats").replaceChildren(...[h("span", {class: "pill"}, T().players(lista.length, max)),
+  $("stats").replaceChildren(...[tipoSorteo(p) ? h("span", {class: "pill"}, tipoSorteo(p)) : null, h("span", {class: "pill"}, T().players(lista.length, max)),
     reservas.length ? h("span", {class: "pill"}, T().inReserve(reservas.length)) : null, h("span", {class: "pill " + est[1]}, est[0]),
     D.resultados.length ? h("span", {class: "pill done"}, T().drawDone) : null].filter(Boolean));
   $("bar").hidden = false; $("barFill").style.width = Math.min(100, lista.length / max * 100) + "%";
