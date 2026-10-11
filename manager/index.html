@@ -1073,6 +1073,13 @@ go(0);
   let ocupado = false;
   // al cambiar de idioma la app se recarga: no se vuelve a pedir el PIN en la misma sesión
   try { if (sessionStorage.getItem("pinOk")) { lock.remove(); return; } } catch (e) { }
+  // el creador del sistema (modo creador) no tiene ninguna restricción: si su sesión está guardada, no se pide el PIN
+  try {
+    const k = "sb.sb-yabgsoghquknuxwrfjaw-auth-token";
+    const ses = JSON.parse((window.Android && Android.getItem ? Android.getItem(k) : localStorage.getItem(k)) || "null");
+    const email = ses && ((ses.user && ses.user.email) || (ses.currentSession && ses.currentSession.user && ses.currentSession.user.email));
+    if (String(email || "").toLowerCase() === "vgonzalom@gmail.com") { lock.remove(); return; }
+  } catch (e) { }
   inp.focus(); setTimeout(() => inp.focus(), 300);
   const fallo = t => {
     err.textContent = t; inp.value = ""; inp.disabled = false; inp.focus();
