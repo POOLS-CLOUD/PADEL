@@ -129,7 +129,7 @@
     "🔒 Cerrar también reservas": "🔒 Close the waiting list too",
     "↩️ Deshacer sorteo": "↩️ Undo draw", "Deshacer": "Undo", "↩️ Sorteo deshecho": "↩️ Draw undone",
     "Sorteando…": "Drawing…",
-    "📞 Llamar": "📞 Call", "Desbloquear": "Unlock", "🔓 Desbloquear": "🔓 Unlock", "🔓 Evento desbloqueado": "🔓 Event unlocked",
+    "📞 Llamar": "📞 Call", "‹ Volver a la web": "‹ Back to the website", "Desbloquear": "Unlock", "🔓 Desbloquear": "🔓 Unlock", "🔓 Evento desbloqueado": "🔓 Event unlocked",
     "Contraseña incorrecta": "Wrong password", "Guardar": "Save", "🔑 Contraseña del evento": "🔑 Event password",
     "Mínimo 4 caracteres": "At least 4 characters", "🔑 Cambiar contraseña": "🔑 Change password", "🔑 Poner contraseña": "🔑 Set password",
     "🔑 Contraseña del evento guardada": "🔑 Event password saved", "La contraseña debe tener al menos 4 caracteres": "The password must be at least 4 characters long",
