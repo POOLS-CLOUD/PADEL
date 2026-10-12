@@ -199,14 +199,13 @@ async function elegirCanal(p){
   const m = document.createElement("div"); m.className = "modal";
   m.innerHTML = `<div class="box"><p style="margin:0 0 10px;font-weight:700">📣 Canal de Telegram del evento</p>
     <div style="display:grid;gap:6px;margin-bottom:10px">
-      ${cloud.canales.map(c => `<div style="display:flex;gap:8px;align-items:center"><label style="flex:1;display:flex;gap:8px;align-items:center;font-weight:600"><input type="radio" name="tgc" value="${esc(c.id)}"${c.id === actual ? " checked" : ""}> ${esc(c.titulo)}</label>${c.gestiono ? `<button type="button" class="btn small ghost" data-adcanal="${esc(c.id)}" title="Quién puede usar este canal">👥</button>` : ""}</div>`).join("")}
+      ${cloud.canales.map(c => `<label style="display:flex;gap:8px;align-items:center;font-weight:600"><input type="radio" name="tgc" value="${esc(c.id)}"${c.id === actual ? " checked" : ""}> ${esc(c.titulo)}</label>`).join("")}
       <label style="display:flex;gap:8px;align-items:center;color:var(--muted)"><input type="radio" name="tgc" value=""${actual ? "" : " checked"}> Sin canal (no publicar en Telegram)</label>
     </div>
     <button class="btn small" id="tgNuevo" style="width:100%;margin-bottom:10px">＋ Vincular un canal nuevo</button>
     <div class="row"><button class="btn ghost" id="tgNo" type="button">Cancelar</button><button class="btn primary" id="tgSi" type="button">Guardar</button></div></div>`;
   document.body.appendChild(m);
   m.querySelector("#tgNo").onclick = () => m.remove();
-  m.querySelectorAll("[data-adcanal]").forEach(b => b.onclick = () => adminsCanal(cloud.canales.find(c => c.id === b.dataset.adcanal)));
   m.querySelector("#tgNuevo").onclick = async () => { m.remove(); if (await vincularCanal(p)) { await reloadPool(); renderCloud(); } };
   m.querySelector("#tgSi").onclick = () => guard(async () => {
     const v = (m.querySelector("input[name=tgc]:checked") || {}).value || null;
@@ -218,40 +217,6 @@ async function elegirCanal(p){
     toast(v ? `📣 Las novedades se publicarán en «${nombreCanal(v)}»` : "Este evento ya no publica en Telegram");
   });
 }
-// Quién puede usar un canal (solo lo cambian quien lo vinculó y el modo creador)
-async function adminsCanal(c){
-  const r = await cloud.sb.rpc("admins_canal", {p_canal: c.id});
-  if (r.error) { toast(r.error.code === "PGRST202" ? "Falta ejecutar cambio_25_telegram_admins_canal.sql en Supabase" : "No se pudo cargar: " + cloudError(r.error)); return; }
-  const l = (r.data || []).map(x => typeof x === "string" ? x : x.admins_canal);
-  const m = document.createElement("div"); m.className = "modal"; m.style.zIndex = 30;
-  m.innerHTML = `<div class="box"><p style="margin:0 0 4px;font-weight:700">👥 ¿Quién puede usar «${esc(c.titulo)}»?</p>
-    <p class="help" style="margin:0 0 10px">Solo estos administradores verán el canal y podrán asignarlo a sus eventos (además de ti).</p>
-    <div class="row" style="margin-bottom:6px"><input type="email" id="acIn" placeholder="email@ejemplo.com" autocomplete="off" style="flex:1"><button type="button" class="btn small" id="acAdd">Añadir</button></div>
-    <div class="chips" id="acL" style="margin-bottom:12px"></div>
-    <div class="row"><button class="btn ghost" id="acNo" type="button">Cancelar</button><button class="btn primary" id="acSi" type="button">Guardar</button></div></div>`;
-  document.body.appendChild(m);
-  const pinta = () => {
-    m.querySelector("#acL").innerHTML = l.length ? l.map((e, i) => `<span class="chip" style="display:inline-flex;align-items:center;gap:6px;border-style:solid">${esc(e)}<button type="button" class="x" data-q="${i}" style="font-size:18px;padding:0 2px">×</button></span>`).join("")
-      : `<span class="help">Nadie más: solo tú.</span>`;
-    m.querySelectorAll("[data-q]").forEach(b => b.onclick = () => { l.splice(+b.dataset.q, 1); pinta(); });
-  };
-  const add = () => {
-    const e = m.querySelector("#acIn").value.trim().toLowerCase();
-    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e)) { toast("Escribe un email válido"); return; }
-    if (!l.includes(e)) l.push(e);
-    m.querySelector("#acIn").value = ""; pinta();
-  };
-  pinta();
-  m.querySelector("#acAdd").onclick = add;
-  m.querySelector("#acIn").onkeydown = ev => { if (ev.key === "Enter") { ev.preventDefault(); add(); } };
-  m.querySelector("#acNo").onclick = () => m.remove();
-  m.querySelector("#acSi").onclick = () => guard(async () => {
-    const rr = await cloud.sb.rpc("poner_admins_canal", {p_canal: c.id, p_emails: l});
-    if (rr.error) throw rr.error;
-    m.remove(); toast(`👥 Guardado: ${l.length ? l.join(", ") : "solo tú"} ${l.length === 1 ? "puede" : "pueden"} usar «${c.titulo}»`);
-  });
-}
-
 // Selector de canal en el formulario de crear evento (propone el último usado)
 function canalSelectHtml(){
   const rec = store.get("canalRecordado", null), l = cloud.canales || [];
