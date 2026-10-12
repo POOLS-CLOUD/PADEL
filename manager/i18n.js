@@ -152,7 +152,7 @@
     "Este evento es de otro organizador y tiene contraseña. Escríbela para poder gestionarlo.": "This event belongs to another organiser and has a password. Enter it to manage the event.",
     "🔒 Desbloquea el evento en «Info evento»": "🔒 Unlock the event in “Event info”",
     "👑 Modo creador: puedes gestionar todos los eventos sin contraseña": "👑 Creator mode: you can manage every event without a password",
-    "Falta ejecutar cambio_18_claves_y_creador.sql en Supabase": "cambio_18_claves_y_creador.sql still needs to be run in Supabase", "📣 Avisado": "📣 Notified", "✓ Ha confirmado asistencia": "✓ Attendance confirmed",
+    "Falta ejecutar cambio_18_claves_y_creador.sql en Supabase": "cambio_18_claves_y_creador.sql still needs to be run in Supabase", "📣 Avisado": "📣 Notified", "✓ Ha confirmado asistencia": "✓ Attendance confirmed", "✓ Reserva confirmado": "✓ Reserve confirmed",
     "📣 Avisado · esperando a que confirme en la web": "📣 Notified · waiting for them to confirm on the web",
     "📣 Marcado como avisado: el aviso se quitará cuando confirme en la web": "📣 Marked as notified: the alert will go away when they confirm on the web",
     "⏳ Pendiente de confirmar": "⏳ Awaiting confirmation", "⏳ Pendiente de confirmar · 📣 avisado": "⏳ Awaiting confirmation · 📣 notified", "✓ Confirmado": "✓ Confirmed", "✓ Confirmar": "✓ Confirm", "⬆️ Subió de reservas": "⬆️ Moved up from reserves",
