@@ -753,7 +753,9 @@ async function renderPanel(box){
     ${admins.length ? admins.map(tarjeta).join("") : `<div class="card help">No hay más administradores registrados. Se crean en Supabase (Authentication → Users) y se les da acceso de organizador.</div>`}
     <div style="font-weight:700;margin:16px 2px 8px">Canales de Telegram (${canales.length})</div>
     ${canales.length ? canales.map(c => `<div class="card"><div style="font-weight:700">📣 ${esc(c.titulo)}</div>
-        <div class="help" style="margin:2px 0 0">${(c.emails || []).length ? "Lo pueden usar: " + c.emails.map(esc).join(", ") : "Solo tú (y quien lo vinculó)"}</div></div>`).join("")
+        <div class="help" style="margin:2px 0 0">${(c.emails || []).length ? "Lo pueden usar: " + c.emails.map(esc).join(", ") : "Solo tú (y quien lo vinculó)"}</div>
+        <div class="help" style="margin:4px 0 0;word-break:break-all">🔗 ${c.enlace ? esc(c.enlace) : "Sin enlace: no saldrá el botón «Seguir en Telegram» en la web"}</div>
+        <button class="btn small ghost" data-enlace="${esc(c.id)}" style="margin-top:6px">🔗 ${c.enlace ? "Cambiar enlace" : "Poner enlace"}</button></div>`).join("")
       : `<div class="card help">Ninguno. Se vinculan desde un evento con «📣 Telegram».</div>`}`;
   $("pVolver").onclick = () => irA("menu");
   // guardar al momento: quitar con × o añadir desde el desplegable
@@ -762,6 +764,16 @@ async function renderPanel(box){
     if (r.error) throw r.error;
     toast(`💾 ${email}: ${ids.length ? ids.length + " canal(es)" : "sin canales"}`);
     renderPanel(box);
+  });
+  box.querySelectorAll("[data-enlace]").forEach(b => b.onclick = async () => {
+    const c = canales.find(x => x.id === b.dataset.enlace);
+    const v = await pedirTexto(`🔗 Enlace de «${c.titulo}»`, "Pega el enlace de invitación del canal (Telegram → canal → Administrar canal → Enlaces de invitación). Déjalo vacío para quitarlo.", {si: "Guardar", valor: c.enlace || ""});
+    if (v === null) return;
+    guard(async () => {
+      const r = await cloud.sb.rpc("poner_enlace_canal", {p_canal: c.id, p_enlace: v});
+      if (r.error) { toast(/ENLACE_NO_VALIDO/.test(r.error.message || "") ? "Ese enlace no es de Telegram (debe empezar por https://t.me/)" : r.error.code === "PGRST202" ? "Falta ejecutar cambio_29_enlace_telegram_web.sql en Supabase" : "No se pudo guardar: " + cloudError(r.error)); return; }
+      toast("🔗 Enlace guardado"); renderPanel(box);
+    });
   });
   box.querySelectorAll("[data-admin]").forEach(card => {
     const email = card.dataset.admin, actuales = () => canales.filter(c => (c.emails || []).includes(email)).map(c => c.id);
