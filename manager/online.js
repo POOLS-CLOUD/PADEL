@@ -229,6 +229,9 @@ async function prepararCanalCrear(){
   sel.innerHTML = canalSelectHtml();
 }
 
+// Desplegable del 1 al 10 (si el evento ya tenía un valor mayor, también aparece)
+const opciones1a10 = actual => { const l = [1,2,3,4,5,6,7,8,9,10]; if (actual > 10 && !l.includes(actual)) l.push(actual);
+  return l.map(n => `<option value="${n}"${n === actual ? " selected" : ""}>${n}</option>`).join(""); };
 // Formulario de pool (crear o editar)
 function poolFormHtml(px, v, boton){
   return `<div style="display:grid;gap:8px;margin-top:10px">
@@ -247,8 +250,8 @@ function poolFormHtml(px, v, boton){
       <label style="display:flex;gap:10px;align-items:center;font-weight:600;font-size:15px;padding:4px 0">
         <input type="checkbox" id="${px}Fijas" ${v.parejas_fijas ? "checked" : ""} style="width:22px;height:22px;margin:0">
         Parejas fijas <span class="help" style="font-weight:400">(se apuntan por parejas y el sorteo solo reparte pistas)</span></label>
-      <div class="row"><label class="lbl" style="flex:1">Pistas <span class="help" id="${px}Plazas">(${Math.max(1, Math.round((v.max_jugadores || 20) / 4)) * 4} plazas)</span><input type="number" id="${px}Pistas" value="${Math.max(1, Math.round((v.max_jugadores || 20) / 4))}" min="1" max="15" step="1" inputmode="numeric"></label>
-        <label class="lbl" style="flex:1">Reservas<input type="number" id="${px}Res" value="${v.max_reservas ?? 10}" min="0" max="40"></label></div>
+      <div class="row"><label class="lbl" style="flex:1">Pistas <span class="help" id="${px}Plazas">(${Math.max(1, Math.round((v.max_jugadores || 20) / 4)) * 4} plazas)</span><select id="${px}Pistas">${opciones1a10(Math.max(1, Math.round((v.max_jugadores || 20) / 4)))}</select></label>
+        <label class="lbl" style="flex:1">Reservas<select id="${px}Res">${opciones1a10(v.max_reservas ?? 10)}</select></label></div>
       <div class="lbl">👥 Otros administradores <span class="help" style="font-weight:400">(podrán ver y gestionar este evento)</span>
         <div class="row" style="margin-top:4px"><input type="email" id="${px}AdmIn" placeholder="email@ejemplo.com" autocomplete="off" style="flex:1"><button type="button" class="btn small" id="${px}AdmAdd">Añadir</button></div>
         <div class="chips" id="${px}Adm" style="margin-top:6px">${adminsChips(px)}</div></div>
@@ -259,13 +262,13 @@ function readPoolForm(px){
   const dep = $(px + "Dep").querySelector(".modo.on"), tipo = $(px + "Tipo").querySelector(".modo.on");
   return {deporte: dep ? dep.dataset.dep : "padel", tipo_sorteo: tipo ? tipo.dataset.tipo : "mixto", club: $(px + "Club").value.trim() || null, parejas_fijas: $(px + "Fijas").checked,
     fecha: $(px + "Date").value, titulo: $(px + "Title").value.trim(), horario: $(px + "Hor").value.trim(), importe: $(px + "Imp").value.trim(),
-    notas: $(px + "Notas").value.trim() || null, max_jugadores: Math.min(15, Math.max(1, Math.round(+$(px + "Pistas").value) || 5)) * 4,   /* 4 plazas por pista */ max_reservas: Math.max(0, +$(px + "Res").value || 0)};
+    notas: $(px + "Notas").value.trim() || null, max_jugadores: Math.max(1, Math.round(+$(px + "Pistas").value) || 5) * 4,   /* 4 plazas por pista */ max_reservas: Math.max(0, +$(px + "Res").value || 0)};
 }
 function wirePoolForm(px){
   const dep = $(px + "Dep");
   if (dep) dep.querySelectorAll("[data-dep]").forEach(b => b.onclick = () => { dep.querySelectorAll(".modo").forEach(x => x.classList.toggle("on", x === b)); });
   const pistas = $(px + "Pistas");
-  if (pistas) pistas.oninput = () => { const n = Math.min(15, Math.max(1, Math.round(+pistas.value) || 0)); $(px + "Plazas").textContent = pistas.value ? `(${n * 4} plazas)` : ""; };
+  if (pistas) pistas.onchange = pistas.oninput = () => { const n = Math.max(1, Math.round(+pistas.value) || 1); $(px + "Plazas").textContent = `(${n * 4} plazas)`; };
   const tipo = $(px + "Tipo");
   if (tipo) tipo.querySelectorAll("[data-tipo]").forEach(b => b.onclick = () => { tipo.querySelectorAll(".modo").forEach(x => x.classList.toggle("on", x === b)); });
   wireClubChips(px);
