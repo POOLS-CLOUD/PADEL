@@ -66,6 +66,12 @@ h1{font:800 clamp(26px,7.5vw,34px)/1.1 var(--fd);letter-spacing:-.02em;margin:6p
 .langbtn span{opacity:.5;font-weight:600}
 .langbtn b{font-weight:800}
 header.top .back{padding-right:70px}
+.sharerow{display:flex;flex-wrap:wrap;gap:8px}
+.sharerow .sharebtn{margin-top:14px}
+.cardacts{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.cardbtn{display:inline-flex;align-items:center;gap:5px;padding:6px 11px;border-radius:999px;border:1px solid var(--line);background:var(--card);color:var(--ink);font:600 12px var(--fb);cursor:pointer}
+.cardbtn:hover{background:var(--mint)}
+.cardacts .tgbtn{margin-top:0}
 .sharebtn{margin-top:14px;display:inline-flex;align-items:center;gap:8px;border:1px solid rgba(255,255,255,.35);background:rgba(255,255,255,.12);color:var(--head-ink);
   border-radius:999px;padding:9px 16px;min-height:44px;font:600 15px var(--fb);cursor:pointer}
 .sharebtn:active{background:rgba(255,255,255,.22)}
@@ -211,6 +217,7 @@ input[type=text],input[type=tel]{font:16px var(--fb);color:var(--ink);background
   <div class="notas" id="notas" hidden></div>
   <div class="stats" id="stats"></div>
   <button class="sharebtn" id="bShare" type="button" hidden>📤 Compartir</button>
+  <div class="sharerow" id="shareAll" hidden><button class="sharebtn" id="bShareAll" type="button">📤 Compartir</button><button class="sharebtn" id="bCopyAll" type="button">📋 Copiar enlace</button></div>
   <div class="bar" id="bar" hidden><i id="barFill" style="width:0"></i></div>
 </div></header>
 
@@ -277,7 +284,8 @@ const TXT = {
     twoFromHere: "Ya hay 2 apuntados desde este móvil", allFull: "Lista y reservas completas",
     otherReserve: "Apuntar a otra persona (reservas)", other: "Apuntar a otra persona", joinReserve: "Apuntarme a reservas",
     signUpHere: "🎾 Apúntate aquí 👉", shareTitle: "Compartir", shareText: "Envía el enlace del evento para que se apunten.",
-    copyLink: "🔗 Copiar enlace", copied: "Enlace copiado",
+    copyLink: "🔗 Copiar enlace", copied: "Enlace copiado", shareBtn: "📤 Compartir", copyBtn: "📋 Copiar enlace", copyShort: "📋 Copiar",
+    shareAllTitle: "Sport Events · Próximas competiciones", shareAllText: "🎾 Próximas competiciones: elige la tuya y apúntate 👉", shareAllHelp: "Envía el enlace con todos los eventos para que cada uno se apunte al suyo.",
     pairHint: (res, n) => `${res ? "Pareja de reserva" : "Pareja"} ${n}. Escribe tu nombre como te conocen en el grupo.`,
     listFullHint: "La lista está completa: entrarás en reservas y pasarás a la lista por orden si alguien se borra.",
     otherHint: "Escribe el nombre de la otra persona que quieres apuntar (máximo 2 desde este móvil).",
@@ -323,7 +331,8 @@ const TXT = {
     twoFromHere: "2 people already signed up from this phone", allFull: "List and waiting list full",
     otherReserve: "Sign up someone else (waiting list)", other: "Sign up someone else", joinReserve: "Join the waiting list",
     signUpHere: "🎾 Sign up here 👉", shareTitle: "Share", shareText: "Send the event link so people can sign up.",
-    copyLink: "🔗 Copy link", copied: "Link copied",
+    copyLink: "🔗 Copy link", copied: "Link copied", shareBtn: "📤 Share", copyBtn: "📋 Copy link", copyShort: "📋 Copy",
+    shareAllTitle: "Sport Events · Upcoming competitions", shareAllText: "🎾 Upcoming competitions: pick yours and sign up 👉", shareAllHelp: "Send the link with all the events so everyone can sign up for theirs.",
     pairHint: (res, n) => `${res ? "Reserve pair" : "Pair"} ${n}. Type your name as the group knows you.`,
     listFullHint: "The list is full: you'll go on the waiting list and move up in order if someone drops out.",
     otherHint: "Type the name of the other person you want to sign up (max. 2 from this phone).",
@@ -505,7 +514,8 @@ async function vistaListado(){
   $("back").hidden = true;
   $("eyebrow").textContent = DEMO ? T().demo : "Sport Events";
   $("eyebrow").hidden = false;
-  $("top").classList.add("hero"); $("bShare").hidden = true;
+  $("top").classList.add("hero"); $("bShare").hidden = true; $("shareAll").hidden = false;
+  $("bShareAll").textContent = T().shareBtn; $("bCopyAll").textContent = T().copyBtn;
   $("title").textContent = T().listTitle;
   $("meta").textContent = T().listMeta;
   document.title = "Sport Events · " + T().listTitle;
@@ -525,7 +535,10 @@ async function vistaListado(){
         lleno >= p.max_jugadores && p.estado === "abierta" ? h("span", {class: "tag open"}, T().full) : null,
         lleno < p.max_jugadores && p.estado === "abierta" ? h("span", {class: "tag open"}, T().freeSpots(p.max_jugadores - lleno)) : null, res ? h("span", {class: "tag"}, T().inReserve(res)) : null),
       h("div", {class: "mini"}, h("i", {style: `width:${lleno / p.max_jugadores * 100}%`})),
-      p.tgEnlace ? h("span", {class: "tgbtn", role: "link", tabindex: "0", onclick: e => { e.preventDefault(); e.stopPropagation(); window.open(p.tgEnlace, "_blank", "noopener"); }}, T().followTg) : null);
+      h("div", {class: "cardacts"},
+        h("span", {class: "cardbtn", role: "button", tabindex: "0", onclick: e => { e.preventDefault(); e.stopPropagation(); compartirEvento(p); }}, T().shareBtn),
+        h("span", {class: "cardbtn", role: "button", tabindex: "0", onclick: e => { e.preventDefault(); e.stopPropagation(); copiarTexto(urlEvento(p)); }}, T().copyShort),
+        p.tgEnlace ? h("span", {class: "tgbtn", role: "link", tabindex: "0", onclick: e => { e.preventDefault(); e.stopPropagation(); window.open(p.tgEnlace, "_blank", "noopener"); }}, T().followTg) : null));
   };
   const main = $("main"); main.replaceChildren();
   main.append(h("section", {},
@@ -550,7 +563,7 @@ function vistaBorrada(){
 const tipoSorteo = p => T().tipos[p.parejas_fijas ? "fijas" : p.tipo_sorteo] || null;
 let slotElegido = null;   // hueco elegido al apuntarse en un evento de parejas fijas
 function vistaPool(){
-  $("top").classList.remove("hero"); $("bShare").hidden = false;
+  $("top").classList.remove("hero"); $("bShare").hidden = false; $("shareAll").hidden = true;
   const p = POOL, max = p.max_jugadores, fijas = !!p.parejas_fijas;
   // con parejas fijas cada uno ocupa un hueco (posición); si no, por orden de inscripción
   const {lista, reservas} = partir(p, D.inscritos);
@@ -646,15 +659,22 @@ function textoCompartir(p){
   const f = fecha(p.fecha).toLocaleDateString(LOC(), {day: "2-digit", month: "2-digit", year: "numeric"});
   return [p.titulo, `📅 ${f}${p.horario ? " · " + p.horario : ""}`, p.importe, p.club && "📍 " + p.club].filter(Boolean).join("\n");
 }
-async function compartir(){
-  const p = POOL; if (!p) return;
-  const url = location.origin + location.pathname + (DEMO ? "?demo&pool=" : "?pool=") + p.codigo;
-  const texto = textoCompartir(p) + "\n\n" + T().signUpHere;
-  if (navigator.share) { try { await navigator.share({title: p.titulo, text: texto, url}); return; } catch(e) { if (e && e.name === "AbortError") return; } }
+const urlEvento = p => location.origin + location.pathname + (DEMO ? "?demo&pool=" : "?pool=") + p.codigo;
+const urlWeb = () => location.origin + location.pathname + (DEMO ? "?demo" : "");
+async function copiarTexto(t){
+  try { await navigator.clipboard.writeText(t); }
+  catch(e) { const ta = h("textarea", {}); ta.value = t; document.body.append(ta); ta.select(); document.execCommand("copy"); ta.remove(); }
+  toast(T().copied);
+}
+function compartir(){ const p = POOL; if (p) compartirEnlace(p.titulo, textoCompartir(p) + "\n\n" + T().signUpHere, urlEvento(p), T().shareText); }
+function compartirEvento(p){ compartirEnlace(p.titulo, textoCompartir(p) + "\n\n" + T().signUpHere, urlEvento(p), T().shareText); }
+function compartirWeb(){ compartirEnlace(T().shareAllTitle, T().shareAllText, urlWeb(), T().shareAllHelp); }
+async function compartirEnlace(titulo, texto, url, ayuda){
+  if (navigator.share) { try { await navigator.share({title: titulo, text: texto, url}); return; } catch(e) { if (e && e.name === "AbortError") return; } }
   const todo = texto + " " + url;
   const s = h("div", {class: "sheet"}, h("div", {class: "panel", role: "dialog"},
     h("h3", {}, T().shareTitle, h("button", {class: "x", type: "button", "aria-label": T().close, onclick: () => s.remove()}, "×")),
-    h("p", {}, T().shareText),
+    h("p", {}, ayuda || T().shareText),
     h("div", {class: "stack"},
       h("a", {class: "btn primary", href: "https://wa.me/?text=" + encodeURIComponent(todo), target: "_blank", rel: "noopener", onclick: () => s.remove()}, "📲 WhatsApp"),
       h("button", {class: "btn", type: "button", onclick: async () => {
@@ -665,6 +685,8 @@ async function compartir(){
   document.body.append(s);
 }
 $("bShare").onclick = compartir;
+$("bShareAll").onclick = compartirWeb;
+$("bCopyAll").onclick = () => copiarTexto(urlWeb());
 
 /* ---------- apuntarse / borrarse ---------- */
 const sheet = $("sJoin");
