@@ -119,6 +119,35 @@ async function guardarAdmins(p, px, nuevo){
   if (nuevo) cloud.adminsForm.n = null;   // el siguiente evento vuelve a proponer los recordados
 }
 
+/* ---------- «Nueva semana»: el mismo evento, 7 días después, con la lista vacía ---------- */
+async function nuevaSemana(p){
+  const d = fromIso(p.fecha || isoDate(new Date())); d.setDate(d.getDate() + 7);
+  const nf = isoDate(d), ini = cuantosIniciales();
+  if (!await ask(`🔁 ¿Crear el evento de la semana siguiente?\n\n«${p.titulo}» · 📅 ${fechaCorta(nf)}\n\nMismos datos, administradores y canal de Telegram. La lista empieza vacía y con la inscripción abierta. Este evento se queda como historial.`,
+    "Crear", ini ? `Apuntar ya a los jugadores iniciales (${ini})` : null)) return;
+  const conIniciales = !!ini && $("modalCheck").checked;
+  guard(async () => {
+    const campos = ["titulo", "horario", "importe", "club", "notas", "deporte", "tipo_sorteo", "parejas_fijas", "max_jugadores", "max_reservas"];
+    const row = {fecha: nf, estado: "abierta"};
+    campos.forEach(k => { if (p[k] !== undefined) row[k] = p[k]; });
+    const data = await savePool(row);
+    // mismos administradores
+    try {
+      const r = await cloud.sb.rpc("admins_evento", {p_pool: p.id});
+      const l = r.error ? [] : (r.data || []).map(x => typeof x === "string" ? x : x.admins_evento);
+      if (l.length) await cloud.sb.rpc("poner_admins", {p_pool: data.id, p_emails: l});
+    } catch(e) { }
+    cloud.pools.unshift(data); await selectPool(data); cloud.vista = "evento";
+    state.header = poolToHeader(data); save();
+    let n = 0;
+    if (conIniciales) { const {nombres, numeros} = parseNombres(getLista()); n = nombres.length ? await apuntarFijos(data, nombres, numeros) : 0; }
+    // el canal al final: el bot publica un solo anuncio con el evento nuevo
+    if (p.telegram_canal) { const rc = await cloud.sb.rpc("poner_canal", {p_pool: data.id, p_canal: p.telegram_canal}); if (!rc.error) await reloadPool(); }
+    renderCloud();
+    toast(`🔁 Evento del ${fechaCorta(nf)} creado${n ? ` con ${n} jugador(es)` : ""}${p.telegram_canal ? " y anunciado en Telegram" : ""}`);
+  });
+}
+
 /* ---------- Telegram: cada canal se vincula una vez; cada evento elige el suyo ---------- */
 cloud.canales = null;
 const TG_FN = SUPABASE_URL + "/functions/v1/telegram";
@@ -803,6 +832,7 @@ function renderCloud(){
           : p.estado === "sorteada" ? `<button class="btn small" id="cOpen">🔓 Reabrir inscripción</button><button class="btn small" id="cClose">🔒 Cerrar también reservas</button>`
           : `<button class="btn small" id="cOpen">🔓 Abrir inscripción</button>`}
         <button class="btn small ghost" id="cEdit">✏️ Editar datos evento</button>
+        <button class="btn small ghost" id="cSemana">🔁 Nueva semana</button>
         <button class="btn small ghost" id="cTelegram">📣 Telegram${p.telegram_canal && nombreCanal(p.telegram_canal) ? ": " + esc(nombreCanal(p.telegram_canal)) : ""}</button>
         <button class="btn small danger" id="cDelPool">🗑 Borrar</button>
       </div>
@@ -894,6 +924,7 @@ function wireCloud(){
   document.querySelectorAll("#cloudBox [data-pick]").forEach(el => el.onclick = () => guard(async () => { await selectPool(cloud.pools.find(x => x.id === el.dataset.pick)); }));
   wirePoolForm("n"); wirePoolForm("e"); wireAdmins("n"); wireAdmins("e");
   on("cTelegram", () => elegirCanal(p));
+  on("cSemana", () => nuevaSemana(p));
   on("cEdit", () => { $("cEditBox").classList.toggle("hidden"); if (!$("cEditBox").classList.contains("hidden")) cargarAdminsForm("e", p); });
   on("nSave", () => guard(async () => {
     const row = readPoolForm("n");
@@ -903,10 +934,10 @@ function wireCloud(){
     const data = await savePool(row);
     await guardarAdmins(data, "n", true);
     const canal = $("nCanal") ? $("nCanal").value : "";
-    if (canal) { const rc = await cloud.sb.rpc("poner_canal", {p_pool: data.id, p_canal: canal}); if (!rc.error) { store.set("canalRecordado", canal); data.telegram_canal = canal; } }
     cloud.pools.unshift(data); await selectPool(data); cloud.vista = "evento";
     state.header = poolToHeader(data); save();
     const n = nombres.length ? await apuntarFijos(data, nombres, numeros) : 0;
+    if (canal) { const rc = await cloud.sb.rpc("poner_canal", {p_pool: data.id, p_canal: canal}); if (!rc.error) { store.set("canalRecordado", canal); await reloadPool(); } }
     avisoGuardado(data, n ? `Evento creado con ${n} jugador(es) ya inscritos. Comparte el enlace en el grupo` : "Evento creado. Comparte el enlace en el grupo");
   }));
   // lo escrito en los cuadros se guarda al momento (no se pierde si la pantalla se refresca)
