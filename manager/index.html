@@ -135,7 +135,7 @@ input[type=email],input[type=password],input[type=date],input[type=number]{width
 .toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:9px 16px;border-radius:999px;font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:9}
 .toast.on{opacity:1}
 </style>
-</head>
+<script>window.APP_VERSION = "2.6";</script></head>
 <body>
 <header>
   <div class="toprow"><h1>Sport Events<small style="display:block;font-size:.55em;font-weight:600;opacity:.8;letter-spacing:.04em">MANAGER <span id="appVer" style="opacity:.8"></span></small></h1><button class="langbtn" id="bLang" type="button" aria-label="Idioma / Language"></button><button class="cloudbtn" id="cloudTab" title="Inicio" aria-label="Inicio">🏠</button><button class="reset" id="resetAll" title="Reset" aria-label="Reset">⟲</button></div>
@@ -355,7 +355,7 @@ function recall(name){ const m = state.memory[norm(name)]; return m ? m.g : null
 function save(){ store.set("parejasFijas",!!state.parejasFijas); store.set("modo",state.modo); store.set("last",state.last); store.set("players",state.players); store.set("memory",state.memory); store.set("header",state.header); }
 
 // versión instalada, junto al nombre de la app
-try { $("appVer").textContent = window.Android && Android.version ? "v" + Android.version() : "web"; } catch (e) { }
+try { $("appVer").textContent = window.Android && Android.version ? "v" + Android.version() : (window.APP_VERSION ? "v" + window.APP_VERSION + " · web" : "web"); } catch (e) { }
 
 /* ---------- navegación ---------- */
 function go(s){
