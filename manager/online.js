@@ -722,7 +722,7 @@ window.cloudAtras = () => {
 };
 /* ---------- Panel del creador: qué canales de Telegram ve cada administrador ---------- */
 async function renderPanel(box){
-  titulos("👑 Panel del creador", "Marca los canales de Telegram que podrá usar cada administrador al crear o editar sus eventos.");
+  titulos("👑 Panel del creador", "Cada administrador solo verá los canales de Telegram que tenga asignados. Quítalos con × o añade otros con el desplegable.");
   box.innerHTML = `<button class="btn small ghost" id="pVolver" style="margin-bottom:10px">‹ Menú</button><div class="card help">Cargando…</div>`;
   $("pVolver").onclick = () => irA("menu");
   if (!cloud.creador) { box.innerHTML += `<div class="card">Solo para el creador.</div>`; return; }
@@ -735,14 +735,19 @@ async function renderPanel(box){
   }
   const admins = ra.data || [], canales = rc.data || [];
   const fecha = t => t ? new Date(t).toLocaleDateString("es-ES", {day: "2-digit", month: "2-digit", year: "numeric"}) : "nunca";
-  const tarjeta = a => `<div class="card" data-admin="${esc(a.email)}">
+  // canales de cada administrador: solo los que tiene (con ×) y un desplegable para añadir otro
+  const suyos = a => canales.filter(c => (c.emails || []).includes(a.email));
+  const tarjeta = a => {
+    const tiene = suyos(a), resto = canales.filter(c => !tiene.includes(c));
+    return `<div class="card" data-admin="${esc(a.email)}">
       <div style="font-weight:700;word-break:break-all">👤 ${esc(a.email)}</div>
       <div class="help" style="margin:2px 0 8px">${a.eventos} evento(s) · último acceso: ${esc(fecha(a.ultimo_acceso))}</div>
-      ${canales.length ? `<div style="display:grid;gap:6px">${canales.map(c => `<label style="display:flex;gap:8px;align-items:center;font-weight:600">
-          <input type="checkbox" value="${esc(c.id)}"${(c.emails || []).includes(a.email) ? " checked" : ""}> 📣 ${esc(c.titulo)}</label>`).join("")}</div>
-        <button class="btn small primary" data-guardar="${esc(a.email)}" style="margin-top:10px">💾 Guardar canales</button>`
-        : `<p class="help" style="margin:0">Todavía no hay canales vinculados.</p>`}
+      <div class="chips" style="margin-bottom:8px">${tiene.length ? tiene.map(c => `<span class="chip" style="display:inline-flex;align-items:center;gap:6px;border-style:solid">📣 ${esc(c.titulo)}<button type="button" class="x" data-quitarcanal="${esc(c.id)}" title="Quitar canal" style="font-size:18px;padding:0 2px">×</button></span>`).join("")
+        : `<span class="help">Sin canales asignados.</span>`}</div>
+      ${resto.length ? `<select data-anadircanal="1"><option value="">＋ Añadir canal…</option>${resto.map(c => `<option value="${esc(c.id)}">📣 ${esc(c.titulo)}</option>`).join("")}</select>`
+        : canales.length ? "" : `<p class="help" style="margin:0">Todavía no hay canales vinculados.</p>`}
     </div>`;
+  };
   box.innerHTML = `<button class="btn small ghost" id="pVolver" style="margin-bottom:10px">‹ Menú</button>
     <div style="font-weight:700;margin:4px 2px 8px">Administradores (${admins.length})</div>
     ${admins.length ? admins.map(tarjeta).join("") : `<div class="card help">No hay más administradores registrados. Se crean en Supabase (Authentication → Users) y se les da acceso de organizador.</div>`}
@@ -751,14 +756,19 @@ async function renderPanel(box){
         <div class="help" style="margin:2px 0 0">${(c.emails || []).length ? "Lo pueden usar: " + c.emails.map(esc).join(", ") : "Solo tú (y quien lo vinculó)"}</div></div>`).join("")
       : `<div class="card help">Ninguno. Se vinculan desde un evento con «📣 Telegram».</div>`}`;
   $("pVolver").onclick = () => irA("menu");
-  box.querySelectorAll("[data-guardar]").forEach(b => b.onclick = () => guard(async () => {
-    const email = b.dataset.guardar, card = box.querySelector(`[data-admin="${CSS.escape(email)}"]`);
-    const ids = [...card.querySelectorAll("input[type=checkbox]:checked")].map(i => i.value);
+  // guardar al momento: quitar con × o añadir desde el desplegable
+  const guardar = (email, ids) => guard(async () => {
     const r = await cloud.sb.rpc("asignar_canales", {p_email: email, p_canales: ids});
     if (r.error) throw r.error;
     toast(`💾 ${email}: ${ids.length ? ids.length + " canal(es)" : "sin canales"}`);
     renderPanel(box);
-  }));
+  });
+  box.querySelectorAll("[data-admin]").forEach(card => {
+    const email = card.dataset.admin, actuales = () => canales.filter(c => (c.emails || []).includes(email)).map(c => c.id);
+    card.querySelectorAll("[data-quitarcanal]").forEach(b => b.onclick = () => guardar(email, actuales().filter(id => id !== b.dataset.quitarcanal)));
+    const sel = card.querySelector("[data-anadircanal]");
+    if (sel) sel.onchange = () => { if (sel.value) guardar(email, [...actuales(), sel.value]); };
+  });
 }
 
 function titulos(t, ayuda){ $("cloudTitle").textContent = t; $("cloudHelp").textContent = ayuda || ""; $("cloudHelp").style.display = ayuda ? "" : "none"; }

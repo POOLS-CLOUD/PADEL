@@ -129,7 +129,7 @@
     "🔒 Cerrar también reservas": "🔒 Close the waiting list too",
     "↩️ Deshacer sorteo": "↩️ Undo draw", "Deshacer": "Undo", "↩️ Sorteo deshecho": "↩️ Draw undone",
     "Sorteando…": "Drawing…",
-    "📞 Llamar": "📞 Call", "⚠️ No hay teléfono de contacto para avisarle.": "⚠️ There is no contact phone to let them know.",
+    "📞 Llamar": "📞 Call", "Cada administrador solo verá los canales de Telegram que tenga asignados. Quítalos con × o añade otros con el desplegable.": "Each administrator will only see the Telegram channels assigned to them. Remove them with × or add others from the drop-down.", "Sin canales asignados.": "No channels assigned.", "＋ Añadir canal…": "＋ Add channel…", "Quitar canal": "Remove channel", "⚠️ No hay teléfono de contacto para avisarle.": "⚠️ There is no contact phone to let them know.",
     "Abre el evento para ver si dejó teléfono.": "Open the event to see if they left a phone number.", "✏️ mensaje / más": "✏️ message / more",
     "📣 Avisado · esperando confirmación": "📣 Notified · waiting for confirmation", "✕ Quitar": "✕ Dismiss",
     "Uno por línea. Con número delante (p. ej. «3 Jose») entra en ese puesto y te pregunta si eliminar a quien está ahora o intercalarlo. Sin número, se apunta detrás de los que ya están (si la lista está llena, a reservas). Puedes poner el teléfono al final: «Jose 600123456».": "One per line. With a number in front (e.g. “3 Jose”) they take that position and you're asked whether to remove whoever is there now or insert them. Without a number, they're added after the existing players (if the list is full, as reserves). You can add the phone number at the end: “Jose 600123456”.", "✏️ Cambiar teléfono": "✏️ Change phone",
