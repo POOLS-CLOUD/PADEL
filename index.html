@@ -257,7 +257,7 @@ const TXT = {
     previous: "Anteriores", previousSmall: "resultados de los sorteos",
     open: "Inscripción abierta", closed: "Inscripción cerrada", drawn: "Sorteo realizado", drawDone: "🎲 Sorteo realizado", reservesOnly: "Solo reservas",
     reservesOnlyNote: "El sorteo ya está realizado: la lista está cerrada, pero aún puedes apuntarte como reserva dejando tu nombre y teléfono de contacto para ser avisado (el teléfono solo será visible para el administrador).",
-    phoneLabel: "Teléfono de contacto", phoneOpt: "(opcional, pero recomendable)", phoneReq: "(obligatorio)", phonePh: "Ej.: 600 123 456", phoneNote: "🔒 Tu teléfono solo será visible para el administrador, para avisarte si hay cambios o queda una plaza libre.", errPhone: "Escribe tu teléfono de contacto.", errPhoneBad: "Ese teléfono no parece correcto.",
+    phoneLabel: "Teléfono de contacto", phoneOpt: "(opcional, pero recomendable)", phoneReq: "(obligatorio para reservas)", phonePh: "Ej.: 600 123 456", phoneNote: "🔒 Tu teléfono solo será visible para el administrador, para avisarte si hay cambios o queda una plaza libre.", errPhone: "Escribe tu teléfono de contacto.", errPhoneBad: "Ese teléfono no parece correcto.",
     tipos: {mixto: "👫 Parejas mixtas", chicos: "👬 Parejas masculinas", chicas: "👭 Parejas femeninas", aleatorio: "🎲 Parejas aleatorias", fijas: "🤝 Parejas fijas"},
     courts: n => `🎾 ${n} pista${n === 1 ? "" : "s"}`, players: (a, b) => `${a} / ${b} jugadores`, freeSpots: n => `🟢 ${n} plaza${n === 1 ? "" : "s"} libre${n === 1 ? "" : "s"}`,
     full: "🟢 Completa", poolFull: "🟢 Completa", inReserve: n => `${n} en reservas`,
@@ -303,7 +303,7 @@ const TXT = {
     previous: "Previous", previousSmall: "draw results",
     open: "Registration open", closed: "Registration closed", drawn: "Draw done", drawDone: "🎲 Draw done", reservesOnly: "Waiting list only",
     reservesOnlyNote: "The draw has been made: the list is closed, but you can still join the waiting list by leaving your name and a contact phone number so we can let you know (the phone number will only be visible to the administrator).",
-    phoneLabel: "Contact phone", phoneOpt: "(optional, but recommended)", phoneReq: "(required)", phonePh: "E.g. 600 123 456", phoneNote: "🔒 Your phone number will only be visible to the administrator, to let you know about changes or if a place becomes free.", errPhone: "Type your contact phone number.", errPhoneBad: "That phone number doesn't look right.",
+    phoneLabel: "Contact phone", phoneOpt: "(optional, but recommended)", phoneReq: "(required for the waiting list)", phonePh: "E.g. 600 123 456", phoneNote: "🔒 Your phone number will only be visible to the administrator, to let you know about changes or if a place becomes free.", errPhone: "Type your contact phone number.", errPhoneBad: "That phone number doesn't look right.",
     tipos: {mixto: "👫 Mixed pairs", chicos: "👬 Men's pairs", chicas: "👭 Women's pairs", aleatorio: "🎲 Random pairs", fijas: "🤝 Fixed pairs"},
     courts: n => `🎾 ${n} court${n === 1 ? "" : "s"}`, players: (a, b) => `${a} / ${b} players`, freeSpots: n => `🟢 ${n} free place${n === 1 ? "" : "s"}`,
     full: "🟢 Full", poolFull: "🟢 Full", inReserve: n => `${n} on the waiting list`,
@@ -662,7 +662,11 @@ $("bShare").onclick = compartir;
 const sheet = $("sJoin");
 sheet.addEventListener("click", e => { if (e.target === sheet || e.target.closest("[data-close]")) sheet.hidden = true; });
 document.addEventListener("keydown", e => { if (e.key === "Escape") sheet.hidden = true; });
-const pideTelefono = () => { const si = POOL.estado === "sorteada"; $("fPhoneO").textContent = si ? T().phoneReq : T().phoneOpt; $("fPhone").value = ""; return si; };
+// ¿Entraría como reserva? (tras el sorteo, lista llena o hueco de reserva en parejas fijas): entonces el teléfono es obligatorio
+const entraComoReserva = () => POOL.estado === "sorteada"
+  || (POOL.parejas_fijas ? slotElegido != null && slotElegido >= POOL.max_jugadores : partir(POOL, D.inscritos).lista.length >= POOL.max_jugadores);
+let telObligatorio = false;
+const pideTelefono = () => { telObligatorio = entraComoReserva(); $("fPhoneO").textContent = telObligatorio ? T().phoneReq : T().phoneOpt; $("fPhone").value = ""; return telObligatorio; };
 function abrirHueco(pos){
   slotElegido = pos; pideTelefono();
   const max = POOL.max_jugadores, res = pos >= max, n = Math.floor((res ? pos - max : pos) / 2) + 1;
@@ -683,7 +687,7 @@ $("fSend").onclick = async () => {
   const nombre = $("fName").value.replace(/\s+/g, " ").trim();
   if (!nombre) { $("fErr").textContent = T().errName; return; }
   const telefono = $("fPhone").value.replace(/[^0-9+]/g, "") || null;
-  if ((POOL.estado === "sorteada" || telefono) && (telefono || "").length < 6) { $("fErr").textContent = telefono ? T().errPhoneBad : T().errPhone; $("fPhone").focus(); return; }
+  if ((telObligatorio || telefono) && (telefono || "").length < 6) { $("fErr").textContent = telefono ? T().errPhoneBad : T().errPhone; $("fPhone").focus(); return; }
   $("fSend").disabled = true; $("fSend").textContent = T().signing; $("fErr").textContent = "";
   try {
     const r = await api.apuntarse(POOL, nombre, POOL.parejas_fijas ? slotElegido : null, telefono);

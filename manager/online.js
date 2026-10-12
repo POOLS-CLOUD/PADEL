@@ -1069,18 +1069,39 @@ function avisosVigentes(poolId){
   }
   return l;
 }
+// Telegram: ventana de compartir con el mensaje ya escrito (se elige al jugador como destinatario)
+function tgCompartir(msg, pool){
+  const url = pool && pool.codigo ? poolUrl(pool) : WEB_URL;
+  const texto = msg.split("\n").filter(l => !l.includes(url)).join("\n").trim();   // el enlace ya va aparte
+  return "https://t.me/share/url?url=" + encodeURIComponent(url) + "&text=" + encodeURIComponent(texto);
+}
+// Avisos descartados con la × (no vuelven a salir aunque la base de datos siga marcando «subió»)
+const getDescartados = () => { const l = store.get("avisosDescartados", []); return new Set(Array.isArray(l) ? l : []); };
 function avisosHtml(poolId){
-  const l = avisosVigentes(poolId), avisados = getAvisados();
+  const desc = getDescartados(), l = avisosVigentes(poolId).filter(a => !desc.has(a.id)), avisados = getAvisados();
   if (!l.length) return "";
   return `<div class="card avisos">${l.map(a => {
-    const tel = a.pool === (cloud.pool && cloud.pool.id) ? telefonoDe(a.id) : "";
-    return `<div class="aviso"><div class="txt">⬆️ <b>${esc(a.nombre)}</b> ha pasado de reservas a la lista${poolId ? "" : ` de «${esc(a.titulo)}»`}. Avísale para confirmar que sabe que juega.
-        ${tel ? `<a class="tel" href="#" data-tel="${esc(tel)}" data-nombre="${esc(a.nombre)}" data-tipo="subida" data-pool="${esc(a.pool)}">📞 ${esc(tel)}</a>` : `<span class="help" style="display:block">Sin teléfono: avísale por el grupo.</span>`}</div>
-        ${avisados.has(a.id) ? `<span class="help" style="display:block;margin-top:4px">📣 Avisado · esperando a que confirme en la web</span>` : ""}</div>
-      <div style="display:grid;gap:4px;justify-items:end">
-        ${avisados.has(a.id) ? "" : `<button class="btn small" data-avisar="${esc(a.id)}">📣 Avisado</button>`}
+    const delEvento = a.pool === (cloud.pool && cloud.pool.id), tel = delEvento ? telefonoDe(a.id) : "";
+    const pool = (cloud.pools || []).find(x => x.id === a.pool) || cloud.pool || null;
+    const msg = typeof rellenar === "function" && typeof plantilla === "function" ? rellenar(plantilla("subida"), a.nombre, pool) : "";
+    const n = tel && typeof numeroInternacional === "function" ? numeroInternacional(tel) : "";
+    const contacto = tel
+      ? `<div class="avbtns">
+           <a class="btn small" href="tel:+${esc(n)}">📞 ${esc(tel)}</a>
+           <a class="btn small" href="https://wa.me/${esc(n)}?text=${encodeURIComponent(msg)}" data-wa="1">💬 WhatsApp</a>
+           <a class="btn small" href="${esc(tgCompartir(msg, pool))}" data-wa="1">✈️ Telegram</a>
+           <a class="tel" href="#" data-tel="${esc(tel)}" data-nombre="${esc(a.nombre)}" data-tipo="subida" data-pool="${esc(a.pool)}" data-id="${esc(a.id)}" style="align-self:center;font-size:12px">✏️ mensaje / más</a>
+         </div>`
+      : delEvento ? `<p class="avsin">⚠️ No hay teléfono de contacto para avisarle.</p>`
+      : `<p class="avsin">Abre el evento para ver si dejó teléfono.</p>`;
+    return `<div class="aviso">
+      <div class="txt">⬆️ <b>${esc(a.nombre)}</b> ha pasado de reservas a la lista${poolId ? "" : ` de «${esc(a.titulo)}»`}. Avísale para confirmar que sabe que juega.</div>
+      ${contacto}
+      <div class="avbtns">
+        ${avisados.has(a.id) ? `<span class="avok">📣 Avisado · esperando confirmación</span>` : `<button class="btn small" data-avisar="${esc(a.id)}">📣 Avisado</button>`}
         <button class="btn small primary" data-confirmar="${esc(a.id)}" data-pool="${esc(a.pool)}">✓ Confirmado</button>
-        <button class="x" data-avisado="${esc(a.id)}" title="Quitar aviso" style="font-size:18px">×</button></div></div>`; }).join("")}</div>`;
+        <button class="btn small ghost" data-avisado="${esc(a.id)}" title="Quitar aviso">✕ Quitar</button>
+      </div></div>`; }).join("")}</div>`;
 }
 // Reserva que ha subido: etiqueta «Subió de reservas» y botón para marcarlo como confirmado (se guarda en la base de datos)
 const subidos = () => { const l = store.get("subidos", []); return new Set(Array.isArray(l) ? l : []); };
@@ -1100,9 +1121,12 @@ function wireAvisos(){
     toast("📣 Marcado como avisado: el aviso se quitará cuando confirme en la web"); window.avisosActualizados();
   });
   document.querySelectorAll("[data-avisado]").forEach(b => b.onclick = () => {
+    const d = getDescartados(); d.add(b.dataset.avisado); store.set("avisosDescartados", [...d].slice(-300));
     store.set("avisos", getAvisos().filter(a => a.id !== b.dataset.avisado));
     window.avisosActualizados();
   });
+  // en la Manager web, WhatsApp se abre en otra pestaña
+  document.querySelectorAll(".avisos [data-wa]").forEach(b => b.onclick = e => { if (!window.Android) { e.preventDefault(); window.open(b.href, "_blank", "noopener"); } });
 }
 window.avisosActualizados = () => {
   if (state.step === 0 && window.renderCloud) renderCloud();
