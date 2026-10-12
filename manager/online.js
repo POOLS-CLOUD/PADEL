@@ -693,10 +693,51 @@ function irA(vista){ cloud.vista = vista; go(0); }
 // botón «atrás» de Android en las pantallas online
 window.cloudAtras = () => {
   if (state.step !== 0 || !cloud.user) return 0;
-  if (cloud.vista === "lista" || cloud.vista === "crear") { irA("menu"); return 1; }
+  if (cloud.vista === "lista" || cloud.vista === "crear" || cloud.vista === "panel") { irA("menu"); return 1; }
   if (cloud.vista === "evento") { irA("lista"); return 1; }
   return 0;
 };
+/* ---------- Panel del creador: qué canales de Telegram ve cada administrador ---------- */
+async function renderPanel(box){
+  titulos("👑 Panel del creador", "Marca los canales de Telegram que podrá usar cada administrador al crear o editar sus eventos.");
+  box.innerHTML = `<button class="btn small ghost" id="pVolver" style="margin-bottom:10px">‹ Menú</button><div class="card help">Cargando…</div>`;
+  $("pVolver").onclick = () => irA("menu");
+  if (!cloud.creador) { box.innerHTML += `<div class="card">Solo para el creador.</div>`; return; }
+  const [ra, rc] = await Promise.all([cloud.sb.rpc("panel_admins"), cloud.sb.rpc("panel_canales")]);
+  if (cloud.vista !== "panel") return;
+  if (ra.error || rc.error) {
+    const e = ra.error || rc.error;
+    box.innerHTML = `<button class="btn small ghost" id="pVolver" style="margin-bottom:10px">‹ Menú</button><div class="card">${e.code === "PGRST202" ? "Falta ejecutar cambio_25_panel_creador.sql en Supabase" : esc("No se pudo cargar: " + cloudError(e))}</div>`;
+    $("pVolver").onclick = () => irA("menu"); return;
+  }
+  const admins = ra.data || [], canales = rc.data || [];
+  const fecha = t => t ? new Date(t).toLocaleDateString("es-ES", {day: "2-digit", month: "2-digit", year: "numeric"}) : "nunca";
+  const tarjeta = a => `<div class="card" data-admin="${esc(a.email)}">
+      <div style="font-weight:700;word-break:break-all">👤 ${esc(a.email)}</div>
+      <div class="help" style="margin:2px 0 8px">${a.eventos} evento(s) · último acceso: ${esc(fecha(a.ultimo_acceso))}</div>
+      ${canales.length ? `<div style="display:grid;gap:6px">${canales.map(c => `<label style="display:flex;gap:8px;align-items:center;font-weight:600">
+          <input type="checkbox" value="${esc(c.id)}"${(c.emails || []).includes(a.email) ? " checked" : ""}> 📣 ${esc(c.titulo)}</label>`).join("")}</div>
+        <button class="btn small primary" data-guardar="${esc(a.email)}" style="margin-top:10px">💾 Guardar canales</button>`
+        : `<p class="help" style="margin:0">Todavía no hay canales vinculados.</p>`}
+    </div>`;
+  box.innerHTML = `<button class="btn small ghost" id="pVolver" style="margin-bottom:10px">‹ Menú</button>
+    <div style="font-weight:700;margin:4px 2px 8px">Administradores (${admins.length})</div>
+    ${admins.length ? admins.map(tarjeta).join("") : `<div class="card help">No hay más administradores registrados. Se crean en Supabase (Authentication → Users) y se les da acceso de organizador.</div>`}
+    <div style="font-weight:700;margin:16px 2px 8px">Canales de Telegram (${canales.length})</div>
+    ${canales.length ? canales.map(c => `<div class="card"><div style="font-weight:700">📣 ${esc(c.titulo)}</div>
+        <div class="help" style="margin:2px 0 0">${(c.emails || []).length ? "Lo pueden usar: " + c.emails.map(esc).join(", ") : "Solo tú (y quien lo vinculó)"}</div></div>`).join("")
+      : `<div class="card help">Ninguno. Se vinculan desde un evento con «📣 Telegram».</div>`}`;
+  $("pVolver").onclick = () => irA("menu");
+  box.querySelectorAll("[data-guardar]").forEach(b => b.onclick = () => guard(async () => {
+    const email = b.dataset.guardar, card = box.querySelector(`[data-admin="${CSS.escape(email)}"]`);
+    const ids = [...card.querySelectorAll("input[type=checkbox]:checked")].map(i => i.value);
+    const r = await cloud.sb.rpc("asignar_canales", {p_email: email, p_canales: ids});
+    if (r.error) throw r.error;
+    toast(`💾 ${email}: ${ids.length ? ids.length + " canal(es)" : "sin canales"}`);
+    renderPanel(box);
+  }));
+}
+
 function titulos(t, ayuda){ $("cloudTitle").textContent = t; $("cloudHelp").textContent = ayuda || ""; $("cloudHelp").style.display = ayuda ? "" : "none"; }
 
 function renderMenu(box){
@@ -705,14 +746,16 @@ function renderMenu(box){
   const p = cloud.pool, seguir = p && p.fecha >= hoyIso();
   box.innerHTML = avisosHtml(null) + `
     <button class="btn primary bigbtn" id="mEventos">📋 Gestionar un evento activo<small>${activos.length ? `${activos.length} evento${activos.length === 1 ? "" : "s"} activo${activos.length === 1 ? "" : "s"}` : "No hay eventos activos"}</small></button>
+    ${cloud.creador ? `<button class="btn bigbtn" id="mPanel" style="border-color:#c9a227">👑 Panel del creador<small>Administradores y canales de Telegram</small></button>` : ""}
     <button class="btn bigbtn" id="mCrear">＋ Crear un nuevo evento<small>Fecha, horario, club, plazas y jugadores ya inscritos</small></button>
     ${seguir ? `<button class="btn ghost bigbtn" id="mSeguir" style="font-size:16px">↪ Continuar con «${esc(p.titulo)}»<small>📅 ${fechaCorta(p.fecha)}</small></button>` : ""}
     <p class="help" style="text-align:center;margin-top:18px">Conectado como ${esc(cloud.user.email || "")} · <a href="#" id="cLogout">Salir</a></p>
-    ${cloud.creador ? `<p class="help" style="text-align:center;margin-top:4px">👑 Modo creador: puedes gestionar todos los eventos sin contraseña</p>` : ""}
+    ${cloud.creador ? `<p class="help" style="text-align:center;margin-top:4px">👑 Modo creador: puedes gestionar todos los eventos</p>` : ""}
     ${estadoAvisosHtml()}`;
   wireAvisos();
   $("mEventos").onclick = () => irA("lista");
   $("mCrear").onclick = () => irA("crear");
+  if ($("mPanel")) $("mPanel").onclick = () => irA("panel");
   if ($("mSeguir")) $("mSeguir").onclick = () => irA("evento");
   $("cLogout").onclick = logout;
 }
@@ -799,6 +842,7 @@ function renderCloud(){
   if (cloud.vista === "menu") { renderMenu(box); return; }
   if (cloud.vista === "lista") { renderLista(box); return; }
   if (cloud.vista === "crear") { renderCrear(box); return; }
+  if (cloud.vista === "panel") { renderPanel(box); return; }
   if (!cloud.pool) { cloud.vista = "menu"; renderMenu(box); return; }
   titulos("📍 Evento", "");
   if (eventoBloqueado(cloud.pool)) {
