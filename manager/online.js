@@ -119,6 +119,87 @@ async function guardarAdmins(p, px, nuevo){
   if (nuevo) cloud.adminsForm.n = null;   // el siguiente evento vuelve a proponer los recordados
 }
 
+/* ---------- Telegram: cada canal se vincula una vez; cada evento elige el suyo ---------- */
+cloud.canales = null;
+const TG_FN = SUPABASE_URL + "/functions/v1/telegram";
+async function cargarCanales(){
+  try { const r = await cloud.sb.rpc("mis_canales"); cloud.canales = r.error ? null : (r.data || []); } catch(e) { cloud.canales = null; }
+  return cloud.canales;
+}
+const nombreCanal = id => ((cloud.canales || []).find(c => c.id === id) || {}).titulo || "";
+async function nombreBot(){
+  if (cloud.bot !== undefined) return cloud.bot;
+  try { const r = await fetch(TG_FN); cloud.bot = (await r.json()).bot || null; } catch(e) { cloud.bot = null; }
+  return cloud.bot;
+}
+// Ventana para vincular un canal nuevo: muestra el código y espera a que se publique en el canal
+async function vincularCanal(pool){
+  const r = await cloud.sb.rpc("codigo_telegram", {p_pool: pool ? pool.id : null});
+  if (r.error) { toast(r.error.code === "PGRST202" ? "Falta ejecutar cambio_21_telegram.sql en Supabase" : "No se pudo crear el código: " + cloudError(r.error)); return null; }
+  const codigo = r.data, bot = await nombreBot(), antes = new Set((cloud.canales || []).map(c => c.id));
+  return new Promise(res => {
+    const m = document.createElement("div"); m.className = "modal";
+    m.innerHTML = `<div class="box"><p style="margin:0 0 8px;font-weight:700">📣 Vincular un canal de Telegram</p>
+      <ol class="help" style="margin:0 0 10px;padding-left:18px;display:grid;gap:6px">
+        <li>En Telegram, abre tu canal → Administradores → Añadir administrador → busca <b>${esc(bot || "el bot de Sport Events")}</b> y dale permiso para <b>publicar mensajes</b>.</li>
+        <li>Publica en el canal este código (caduca en 30 minutos):</li></ol>
+      <div style="text-align:center;font:800 28px system-ui;letter-spacing:2px;padding:10px;border:2px dashed var(--accent);border-radius:12px;margin-bottom:6px">${esc(codigo)}</div>
+      <button class="btn small" id="tgCopiar" style="width:100%;margin-bottom:10px">📋 Copiar código</button>
+      <p class="help" id="tgEstado" style="margin:0 0 10px;text-align:center">⏳ Esperando a que publiques el código…</p>
+      <button class="btn ghost" id="tgCerrar" style="width:100%">Cerrar</button></div>`;
+    document.body.appendChild(m);
+    let vivo = true;
+    const fin = v => { vivo = false; m.remove(); res(v); };
+    m.querySelector("#tgCopiar").onclick = async () => { await copyText(codigo); toast("📋 Código copiado"); };
+    m.querySelector("#tgCerrar").onclick = () => fin(null);
+    (async function esperar(){
+      for (let k = 0; vivo && k < 600; k++) {
+        await new Promise(t => setTimeout(t, 3000)); if (!vivo) return;
+        const l = await cargarCanales() || [], nuevo = l.find(c => !antes.has(c.id));
+        if (pool) { await reloadPool(); if (cloud.pool && cloud.pool.telegram_canal && !antes.has(cloud.pool.telegram_canal)) { toast(`✅ Canal «${nombreCanal(cloud.pool.telegram_canal)}» vinculado`); fin(cloud.pool.telegram_canal); return; } }
+        if (nuevo) { toast(`✅ Canal «${nuevo.titulo}» vinculado`); fin(nuevo.id); return; }
+      }
+    })();
+  });
+}
+// Elegir el canal de un evento ya creado
+async function elegirCanal(p){
+  await cargarCanales();
+  if (cloud.canales === null) { toast("Falta ejecutar cambio_21_telegram.sql en Supabase"); return; }
+  const actual = p.telegram_canal || "";
+  const m = document.createElement("div"); m.className = "modal";
+  m.innerHTML = `<div class="box"><p style="margin:0 0 10px;font-weight:700">📣 Canal de Telegram del evento</p>
+    <div style="display:grid;gap:6px;margin-bottom:10px">
+      ${cloud.canales.map(c => `<label style="display:flex;gap:8px;align-items:center;font-weight:600"><input type="radio" name="tgc" value="${esc(c.id)}"${c.id === actual ? " checked" : ""}> ${esc(c.titulo)}</label>`).join("")}
+      <label style="display:flex;gap:8px;align-items:center;color:var(--muted)"><input type="radio" name="tgc" value=""${actual ? "" : " checked"}> Sin canal (no publicar en Telegram)</label>
+    </div>
+    <button class="btn small" id="tgNuevo" style="width:100%;margin-bottom:10px">＋ Vincular un canal nuevo</button>
+    <div class="row"><button class="btn ghost" id="tgNo" type="button">Cancelar</button><button class="btn primary" id="tgSi" type="button">Guardar</button></div></div>`;
+  document.body.appendChild(m);
+  m.querySelector("#tgNo").onclick = () => m.remove();
+  m.querySelector("#tgNuevo").onclick = async () => { m.remove(); if (await vincularCanal(p)) { await reloadPool(); renderCloud(); } };
+  m.querySelector("#tgSi").onclick = () => guard(async () => {
+    const v = (m.querySelector("input[name=tgc]:checked") || {}).value || null;
+    m.remove();
+    const r = await cloud.sb.rpc("poner_canal", {p_pool: p.id, p_canal: v});
+    if (r.error) throw r.error;
+    if (v) store.set("canalRecordado", v);
+    await reloadPool(); renderCloud();
+    toast(v ? `📣 Las novedades se publicarán en «${nombreCanal(v)}»` : "Este evento ya no publica en Telegram");
+  });
+}
+// Selector de canal en el formulario de crear evento (propone el último usado)
+function canalSelectHtml(){
+  const rec = store.get("canalRecordado", null), l = cloud.canales || [];
+  return `<option value="">Sin canal</option>` + l.map(c => `<option value="${esc(c.id)}"${c.id === rec ? " selected" : ""}>${esc(c.titulo)}</option>`).join("");
+}
+async function prepararCanalCrear(){
+  await cargarCanales();
+  const sel = $("nCanal"); if (!sel) return;
+  if (cloud.canales === null) { $("nCanalBox").classList.add("hidden"); return; }
+  sel.innerHTML = canalSelectHtml();
+}
+
 // Formulario de pool (crear o editar)
 function poolFormHtml(px, v, boton){
   return `<div style="display:grid;gap:8px;margin-top:10px">
@@ -431,6 +512,7 @@ async function selectPool(p){
   if (p) { state.header = poolToHeader(p); store.set("headerPool", p.id); save(); }   // la cabecera siempre sale de los datos del evento
   if (cloud.channel) { cloud.sb.removeChannel(cloud.channel); cloud.channel = null; }
   if (p) await cargarAcceso(p);
+  if (p && cloud.canales === null) cargarCanales().then(() => { if (state.step === 0 && cloud.vista === "evento") renderCloud(); });
   await loadInscritos();
   if (p) {
     let t = null;
@@ -658,9 +740,13 @@ function renderCrear(box){
       <p class="help" style="margin:4px 0 6px">Uno por línea, con o sin número delante (sin número van al siguiente hueco libre). Al crear el evento quedan apuntados en este orden; los demás se apuntan después en la web. Se guarda para el próximo evento.</p>
       <textarea id="nLista" style="min-height:140px" placeholder="1. Juan&#10;2. Ana&#10;3. Luis">${esc(getLista())}</textarea>
       </div>
+      <div class="lbl" id="nCanalBox" style="margin-top:10px">📣 Canal de Telegram <span class="help" style="font-weight:400">(se publicarán las novedades del evento)</span>
+        <div class="row" style="margin-top:4px"><select id="nCanal" style="flex:1">${canalSelectHtml()}</select><button type="button" class="btn small" id="nCanalNuevo">＋ Vincular</button></div></div>
       ${poolFormHtml("n", {fecha: d, titulo: poolTitle(d), horario: hf.horario || "21:30-23:00", importe: hf.importe || "6€ PERSONA", notas: hf.notas, max_jugadores: 20, max_reservas: 10}, "Crear y abrir inscripción")}
     </div>`;
   $("crVolver").onclick = () => irA("menu");
+  prepararCanalCrear();
+  $("nCanalNuevo").onclick = async () => { const id = await vincularCanal(null); if (id) { store.set("canalRecordado", id); $("nCanal").innerHTML = canalSelectHtml(); } };
   wireCloud();
 }
 
@@ -717,6 +803,7 @@ function renderCloud(){
           : p.estado === "sorteada" ? `<button class="btn small" id="cOpen">🔓 Reabrir inscripción</button><button class="btn small" id="cClose">🔒 Cerrar también reservas</button>`
           : `<button class="btn small" id="cOpen">🔓 Abrir inscripción</button>`}
         <button class="btn small ghost" id="cEdit">✏️ Editar datos evento</button>
+        <button class="btn small ghost" id="cTelegram">📣 Telegram${p.telegram_canal && nombreCanal(p.telegram_canal) ? ": " + esc(nombreCanal(p.telegram_canal)) : ""}</button>
         <button class="btn small danger" id="cDelPool">🗑 Borrar</button>
       </div>
       ${p.notas ? `<div class="help" style="margin:8px 0 0;white-space:pre-line">${esc(p.notas)}</div>` : ""}
@@ -806,6 +893,7 @@ function wireCloud(){
   }));
   document.querySelectorAll("#cloudBox [data-pick]").forEach(el => el.onclick = () => guard(async () => { await selectPool(cloud.pools.find(x => x.id === el.dataset.pick)); }));
   wirePoolForm("n"); wirePoolForm("e"); wireAdmins("n"); wireAdmins("e");
+  on("cTelegram", () => elegirCanal(p));
   on("cEdit", () => { $("cEditBox").classList.toggle("hidden"); if (!$("cEditBox").classList.contains("hidden")) cargarAdminsForm("e", p); });
   on("nSave", () => guard(async () => {
     const row = readPoolForm("n");
@@ -814,6 +902,8 @@ function wireCloud(){
     store.set("jugadoresIniciales", $("nLista").value);   // se recuerda para los siguientes eventos
     const data = await savePool(row);
     await guardarAdmins(data, "n", true);
+    const canal = $("nCanal") ? $("nCanal").value : "";
+    if (canal) { const rc = await cloud.sb.rpc("poner_canal", {p_pool: data.id, p_canal: canal}); if (!rc.error) { store.set("canalRecordado", canal); data.telegram_canal = canal; } }
     cloud.pools.unshift(data); await selectPool(data); cloud.vista = "evento";
     state.header = poolToHeader(data); save();
     const n = nombres.length ? await apuntarFijos(data, nombres, numeros) : 0;
