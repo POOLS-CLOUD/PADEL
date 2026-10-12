@@ -140,7 +140,11 @@ async function nuevaSemana(p){
     cloud.pools.unshift(data); await selectPool(data); cloud.vista = "evento";
     state.header = poolToHeader(data); save();
     let n = 0;
-    if (conIniciales) { const {nombres, numeros} = parseNombres(getLista()); n = nombres.length ? await apuntarFijos(data, nombres, numeros) : 0; }
+    if (conIniciales) {
+      const {nombres, numeros, telefonos} = parseNombres(getLista());
+      n = nombres.length ? await apuntarFijos(data, nombres, numeros) : 0;
+      if (n && telefonos.some(Boolean)) await ponerTelefonos(data, nombres, telefonos);
+    }
     // el canal al final: el bot publica un solo anuncio con el evento nuevo
     if (p.telegram_canal) { const rc = await cloud.sb.rpc("poner_canal", {p_pool: data.id, p_canal: p.telegram_canal}); if (!rc.error) await reloadPool(); }
     renderCloud();
@@ -299,17 +303,31 @@ const getLista = () => { const l = store.get("jugadoresIniciales", ""); return t
 const cuantosIniciales = () => parseNombres(getLista()).nombres.length;
 // Solo cuentan las líneas con número de orden delante; se quitan repetidos
 function parseNombres(text){
-  const nombres = [], numeros = [], vistos = new Set(); let ignoradas = 0;
+  const nombres = [], numeros = [], telefonos = [], vistos = new Set(); let ignoradas = 0;
   text.split(/\r?\n/).forEach(l => {
-    const linea = clean(l.replace(EMOJI, "")); if (!linea) return;
+    let linea = clean(l.replace(EMOJI, "")); if (!linea) return;
+    // teléfono opcional al final de la línea: «Jose 600 123 456» o «Ana +34611223344»
+    let tel = null; const mt = linea.match(/\s+(\+?\d[\d\s.-]{6,}\d)$/);
+    if (mt) { tel = mt[1].replace(/[^\d+]/g, ""); linea = linea.slice(0, mt.index).trim(); }
     const np = numberedParts(linea);
     const n = np ? np.text : linea.replace(/^[-*•·]+\s*/, "");      // sin número: se acepta y va al siguiente hueco libre
     if (!n || n.length > 40) { ignoradas++; return; }
     if (vistos.has(norm(n))) return;
     vistos.add(norm(n)); const m = state.memory[norm(n)];
-    nombres.push(m ? m.name : n); numeros.push(np ? np.num : null);
+    nombres.push(m ? m.name : n); numeros.push(np ? np.num : null); telefonos.push(tel);
   });
-  return {nombres, numeros, ignoradas};
+  return {nombres, numeros, telefonos, ignoradas};
+}
+// Guarda los teléfonos escritos al apuntar (privados: solo los ve el organizador)
+async function ponerTelefonos(pool, nombres, telefonos){
+  let n = 0, falta = false;
+  for (let i = 0; i < nombres.length; i++) {
+    if (!telefonos || !telefonos[i]) continue;
+    const r = await cloud.sb.rpc("poner_telefono_nombre", {p_pool: pool.id, p_nombre: nombres[i], p_tel: telefonos[i]});
+    if (r.error) { if (r.error.code === "PGRST202") falta = true; } else if (r.data) n++;
+  }
+  if (falta) toast("Falta ejecutar cambio_27_telefono_desde_manager.sql en Supabase para guardar teléfonos");
+  return n;
 }
 // Apunta en la pool a los nombres dados, en ese orden, saltando los que ya están
 async function apuntarFijos(pool, nombres, numeros = []){
@@ -499,11 +517,11 @@ async function cargarAcceso(p){
 const eventoBloqueado = p => !!(p && cloud.acceso[p.id] && !cloud.acceso[p.id].puede);
 window.poolBloqueado = () => eventoBloqueado(cloud.pool);
 // Ventana para escribir un texto (p. ej. la contraseña). Devuelve el texto o null si se cancela.
-function pedirTexto(titulo, ayuda, {clave = false, si = "Aceptar"} = {}){
+function pedirTexto(titulo, ayuda, {clave = false, si = "Aceptar", valor = "", tipo = ""} = {}){
   return new Promise(res => {
     const m = document.createElement("div"); m.className = "modal";
     m.innerHTML = `<div class="box"><p style="margin:0 0 6px;font-weight:700">${esc(titulo)}</p>${ayuda ? `<p class="help" style="margin:0 0 10px">${esc(ayuda)}</p>` : ""}
-      <input id="ptTxt" type="${clave ? "password" : "text"}" autocomplete="off" style="margin-bottom:12px">
+      <input id="ptTxt" type="${clave ? "password" : tipo || "text"}" autocomplete="off" value="${esc(valor)}" style="margin-bottom:12px">
       <div class="row"><button class="btn ghost" id="ptNo" type="button">Cancelar</button><button class="btn primary" id="ptSi" type="button">${esc(si)}</button></div></div>`;
     document.body.appendChild(m);
     const fin = v => { m.remove(); res(v); };
@@ -630,16 +648,17 @@ window.renderCloudPlayersInfo = () => {
   const apuntar = `<div class="card" style="margin-bottom:12px">
       <button class="btn primary" id="cAdd" style="width:100%">➕ Apuntar jugadores</button>
       <div id="cAddBox" class="${cloud.addAbierto ? "" : "hidden"}" style="margin-top:10px">
-        <p class="help" style="margin:0 0 6px">Uno por línea. Con número delante (p. ej. «3 Jose») entra en ese puesto y te pregunta si eliminar a quien está ahora o intercalarlo. Sin número, se apunta detrás de los que ya están (si la lista está llena, a reservas).</p>
+        <p class="help" style="margin:0 0 6px">Uno por línea. Con número delante (p. ej. «3 Jose») entra en ese puesto y te pregunta si eliminar a quien está ahora o intercalarlo. Sin número, se apunta detrás de los que ya están (si la lista está llena, a reservas). Puedes poner el teléfono al final: «Jose 600123456».</p>
         <textarea id="aLista" style="min-height:110px" placeholder="3 Jose&#10;Ana">${esc(cloud.borradorAdd || "")}</textarea>
         <button class="btn primary small" id="aSave" style="margin-top:6px">Apuntar</button>
       </div></div>`;
   // reservas: no entran en el sorteo, pero se pueden quitar desde aquí
   const reservas = partir(p, cloud.inscritos).reservas;
   $("cloudReservas").innerHTML = reservas.length ? `<div class="card"><div style="font-weight:700;margin-bottom:6px">Reservas <span class="help">(no entran en el sorteo)</span></div>
-    <ul class="plist">${reservas.map((i, k) => `<li><span class="num">R${p.parejas_fijas ? Math.floor((i.posicion - p.max_jugadores) / 2) + 1 : k + 1}.</span><span class="nm" style="cursor:default">${esc(i.nombre)}${(cloud.telefonos || {})[i.id] ? `<a class="tel" href="#" data-tel="${esc(cloud.telefonos[i.id])}">📞 ${esc(cloud.telefonos[i.id])}</a>` : ""}</span>
+    <ul class="plist">${reservas.map((i, k) => `<li><span class="num">R${p.parejas_fijas ? Math.floor((i.posicion - p.max_jugadores) / 2) + 1 : k + 1}.</span><span class="nm" style="cursor:default">${esc(i.nombre)}${(cloud.telefonos || {})[i.id] ? `<a class="tel" href="#" data-tel="${esc(cloud.telefonos[i.id])}" data-id="${esc(i.id)}">📞 ${esc(cloud.telefonos[i.id])}</a>` : `<button type="button" class="tagbtn addtel" data-addtel="${esc(i.id)}" data-nombre="${esc(i.nombre)}">＋📞</button>`}</span>
       <button class="x" data-quitar="${esc(i.id)}" title="Quitar del evento">×</button></li>`).join("")}</ul></div>` : "";
   $("cloudReservas").querySelectorAll("[data-quitar]").forEach(b => b.onclick = () => quitarInscrito(b.dataset.quitar));
+  $("cloudReservas").querySelectorAll("[data-addtel]").forEach(b => b.onclick = () => editarTelefono(b.dataset.addtel, b.dataset.nombre));
   box.innerHTML = avisosHtml(p.id) + `<div class="note ok" style="margin-bottom:12px">☁ <b>${esc(p.titulo)}</b>: ${state.players.length} de ${p.max_jugadores} plazas${res ? ` · ${res} en reservas (no entran)` : ""}. Se actualiza solo.${p.parejas_fijas ? "<br>👫 <b>Parejas fijas</b>: se respetan las parejas; el sorteo solo reparte las pistas." : ""}</div>` + apuntar;
   wireApuntar(p); wireAvisos();
 };
@@ -649,12 +668,13 @@ function wireApuntar(p){
   $("aLista").oninput = () => { cloud.borradorAdd = $("aLista").value; };
   $("cAdd").onclick = () => { cloud.addAbierto = !cloud.addAbierto; $("cAddBox").classList.toggle("hidden", !cloud.addAbierto); if (cloud.addAbierto) $("aLista").focus(); };
   $("aSave").onclick = () => guard(async () => {
-    const {nombres, numeros} = parseNombres($("aLista").value);
+    const {nombres, numeros, telefonos} = parseNombres($("aLista").value);
     if (!nombres.length) { toast("Escribe al menos un nombre"); return; }
     let n = 0;
     const sinNumero = nombres.filter((x, i) => numeros[i] == null);
     for (let i = 0; i < nombres.length; i++) if (numeros[i] != null) n += await apuntarEnPuesto(p, nombres[i], numeros[i]);
     if (sinNumero.length) n += await apuntarFijos(p, sinNumero);
+    if (telefonos.some(Boolean)) { await ponerTelefonos(p, nombres, telefonos); await loadInscritos(); }
     cloud.borradorAdd = ""; cloud.addAbierto = false;
     toast(n ? `${n} jugador(es) apuntados` : "Ya estaban todos apuntados (o no quedan plazas)");
   }).then(() => { if (state.step === 2) renderPlayers(); });
@@ -987,7 +1007,7 @@ function wireCloud(){
   on("nSave", () => guard(async () => {
     const row = readPoolForm("n");
     if (!row.fecha || !row.titulo) { toast("Pon fecha y título"); return; }
-    const {nombres, numeros} = parseNombres($("nLista").value);
+    const {nombres, numeros, telefonos} = parseNombres($("nLista").value);
     store.set("jugadoresIniciales", $("nLista").value);   // se recuerda para los siguientes eventos
     const data = await savePool(row);
     await guardarAdmins(data, "n", true);
@@ -995,6 +1015,7 @@ function wireCloud(){
     cloud.pools.unshift(data); await selectPool(data); cloud.vista = "evento";
     state.header = poolToHeader(data); save();
     const n = nombres.length ? await apuntarFijos(data, nombres, numeros) : 0;
+    if (n && telefonos.some(Boolean)) await ponerTelefonos(data, nombres, telefonos);
     if (canal) { const rc = await cloud.sb.rpc("poner_canal", {p_pool: data.id, p_canal: canal}); if (!rc.error) { store.set("canalRecordado", canal); await reloadPool(); } }
     avisoGuardado(data, n ? `Evento creado con ${n} jugador(es) ya inscritos. Comparte el enlace en el grupo` : "Evento creado. Comparte el enlace en el grupo");
   }));
@@ -1016,6 +1037,14 @@ function wireCloud(){
 }
 
 window.telefonoDe = id => (cloud.telefonos || {})[id] || "";
+window.editarTelefono = async (id, nombre) => {
+  const actual = telefonoDe(id);
+  const t = await pedirTexto(`📞 Teléfono de ${nombre}`, "Solo lo verán los administradores del evento. Déjalo vacío para quitarlo.", {si: "Guardar", valor: actual, tipo: "tel"});
+  if (t === null) return;
+  const r = await cloud.sb.rpc("poner_telefono", {p_id: id, p_tel: t});
+  if (r.error) { toast(r.error.code === "PGRST202" ? "Falta ejecutar cambio_27_telefono_desde_manager.sql en Supabase" : "No se pudo guardar: " + cloudError(r.error)); return; }
+  await loadInscritos(); toast(t.replace(/[^\d+]/g, "").length >= 6 ? `📞 Teléfono de ${nombre} guardado` : `Teléfono de ${nombre} quitado`);
+};
 
 /* ---------- avisos: reservas que han subido a la lista (los detecta la app Android, también con la app cerrada) ---------- */
 function estadoAvisosHtml(){

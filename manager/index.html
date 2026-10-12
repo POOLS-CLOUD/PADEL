@@ -46,6 +46,7 @@ header h1{margin:0;font-size:20px;flex:1;min-width:0;white-space:nowrap;overflow
 .modal{position:fixed;inset:0;z-index:20;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:16px}
 .plist .nm .marca{display:flex;flex-wrap:wrap;gap:4px;align-items:center;margin-top:3px;white-space:normal}
 .tagsub{font-size:11px;font-weight:700;color:var(--warn);background:var(--warn-soft);border-radius:6px;padding:2px 6px}
+.addtel{display:inline-block;margin-top:3px;font-size:12px}
 .tagbtn,.tagok{font:700 11px system-ui;border-radius:6px;padding:3px 8px;cursor:pointer}
 .tagbtn{border:1px solid var(--accent);background:var(--card);color:var(--accent)}
 .tagok{border:1px solid #2e9e5b;background:#e3f6ea;color:#1d7a43}
@@ -136,7 +137,7 @@ input[type=email],input[type=password],input[type=date],input[type=number]{width
 .toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:9px 16px;border-radius:999px;font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:9}
 .toast.on{opacity:1}
 </style>
-<script>window.APP_VERSION = "2.7";</script></head>
+<script>window.APP_VERSION = "2.8";</script></head>
 <body>
 <header>
   <div class="toprow"><h1>Sport Events<small style="display:block;font-size:.55em;font-weight:600;opacity:.8;letter-spacing:.04em">MANAGER <span id="appVer" style="opacity:.8"></span></small></h1><button class="langbtn" id="bLang" type="button" aria-label="Idioma / Language"></button><button class="cloudbtn" id="cloudTab" title="Inicio" aria-label="Inicio">🏠</button><button class="reset" id="resetAll" title="Reset" aria-label="Reset">⟲</button></div>
@@ -587,9 +588,10 @@ function renderPlayers(){
     const sub = p.id && window.estadoSubida ? estadoSubida(p.id) : {};   // reserva que ha subido a la lista
     const marca = sub.conf ? `<button class="tagok" data-conf="${esc(p.id)}" data-v="0">✓ Reserva confirmado</button>`
       : sub.subio ? `<span class="tagsub">⏳ Pendiente de confirmar${sub.avisado ? " · 📣 avisado" : ""}</span> <button class="tagbtn" data-conf="${esc(p.id)}" data-v="1">✓ Confirmar</button>` : "";
-    li.innerHTML = `<span class="num">${p.num}.</span><span class="nm" style="cursor:default">${esc(p.name)}${tel ? `<a class="tel" href="#" data-tel="${esc(tel)}">📞 ${esc(tel)}</a>` : ""}${marca ? `<span class="marca">${marca}</span>` : ""}</span>
+    li.innerHTML = `<span class="num">${p.num}.</span><span class="nm" style="cursor:default">${esc(p.name)}${tel ? `<a class="tel" href="#" data-tel="${esc(tel)}" data-id="${esc(p.id)}">📞 ${esc(tel)}</a>` : p.id && window.editarTelefono ? `<button type="button" class="tagbtn addtel" data-addtel="1">＋📞</button>` : ""}${marca ? `<span class="marca">${marca}</span>` : ""}</span>
       <div class="gender"><label class="h"><input type="radio" name="g${i}" value="H"> ♂ H</label><label class="m"><input type="radio" name="g${i}" value="M"> ♀ M</label></div>${p.id && window.quitarInscrito ? `<button class="x" title="Quitar del evento">×</button>` : ""}`;
     if (li.querySelector(".x")) li.querySelector(".x").onclick = () => quitarInscrito(p.id);
+    if (li.querySelector("[data-addtel]")) li.querySelector("[data-addtel]").onclick = () => editarTelefono(p.id, p.name);
     li.querySelectorAll("[data-conf]").forEach(b => b.onclick = async () => {
       const v = b.dataset.v === "1";
       if (!v && !await ask(`¿Quitar la confirmación de ${p.name}?`, "Quitar")) return;
@@ -964,7 +966,7 @@ function rellenar(texto, nombre, pool){
   const p = pool || {}, v = {nombre, evento: p.titulo || "", fecha: window.fechaCorta && p.fecha ? fechaCorta(p.fecha) : "", horario: p.horario || "", club: p.club || "", enlace: p.codigo && window.poolUrl ? poolUrl(p) : ""};
   return texto.replace(/\{(nombre|evento|fecha|horario|club|enlace)\}/g, (m, k) => v[k]).replace(/ \(, \)| \(\)/g, "").replace(/\(([^,()]*), \)/g, "($1)").replace(/\(, ([^()]*)\)/g, "($1)").trim();
 }
-function contactar(nombre, tel, tipo = "general", pool = null){
+function contactar(nombre, tel, tipo = "general", pool = null, idIns = null){
   const n = numeroInternacional(tel), m = document.createElement("div");
   m.className = "modal";
   m.innerHTML = `<div class="box"><p style="margin:0 0 4px;font-weight:700">${esc(nombre)}</p><p class="help" style="margin:0 0 10px">📞 ${esc(tel)}</p>
@@ -980,6 +982,7 @@ function contactar(nombre, tel, tipo = "general", pool = null){
       <button class="btn primary" data-ir="tel:+${n}">📞 Llamar</button>
       <button class="btn" data-ir="wa">💬 WhatsApp</button>
       <button class="btn" data-ir="tg">✈️ Telegram</button>
+      ${idIns && window.editarTelefono ? `<button class="btn ghost" data-ir="" data-edtel="1">✏️ Cambiar teléfono</button>` : ""}
       <button class="btn ghost" data-ir="">Cancelar</button>
     </div></div>`;
   const msg = () => m.querySelector("#cMsg").value.trim();
@@ -997,6 +1000,7 @@ function contactar(nombre, tel, tipo = "general", pool = null){
     const b = e.target.closest("[data-ir]");
     if (e.target !== m && !b) return;
     m.remove();
+    if (b && b.dataset.edtel) { editarTelefono(idIns, nombre); return; }
     if (!b || !b.dataset.ir) return;
     // la app abre fuera el teléfono, WhatsApp o Telegram
     // en el navegador (Manager web) WhatsApp y Telegram se abren en otra pestaña
@@ -1015,7 +1019,7 @@ document.addEventListener("click", e => {
   e.preventDefault();
   const li = a.closest("li"), nm = li && li.querySelector(".nm");
   const pool = (typeof cloud !== "undefined" && ((cloud.pools || []).find(x => x.id === a.dataset.pool) || cloud.pool)) || null;
-  contactar(a.dataset.nombre || (nm ? nm.firstChild.textContent.trim() : ""), a.dataset.tel, a.dataset.tipo || "general", pool);
+  contactar(a.dataset.nombre || (nm ? nm.firstChild.textContent.trim() : ""), a.dataset.tel, a.dataset.tipo || "general", pool, a.dataset.id || null);
 });
 
 $("undoDraw").onclick = async () => {
