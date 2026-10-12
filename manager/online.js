@@ -855,7 +855,11 @@ function renderLogin(box){
     <p class="help">Usa el email y la contraseña del usuario que creaste en Supabase. Solo hay que hacerlo una vez: la sesión queda guardada en el móvil.</p>
     <div style="display:grid;gap:8px">
       <input type="email" id="cEmail" placeholder="Email" autocomplete="username">
-      <input type="password" id="cPass" placeholder="Contraseña" autocomplete="current-password">
+      <div style="position:relative">
+        <input type="password" id="cPass" placeholder="Contraseña" autocomplete="current-password" style="padding-right:48px">
+        <button type="button" id="cVer" title="Mostrar contraseña" aria-label="Mostrar contraseña"
+          style="position:absolute;right:4px;top:50%;transform:translateY(-50%);border:0;background:transparent;font-size:20px;padding:6px 10px;cursor:pointer;color:var(--muted)">👁</button>
+      </div>
       <button class="btn primary" id="cLogin">Entrar</button>
     </div></div>`;
   const go_ = async () => {
@@ -866,12 +870,19 @@ function renderLogin(box){
       const { data, error } = await cloud.sb.auth.signInWithPassword({email, password});
       if (error) throw error;
       await reclamarSesion();                                   // este móvil pasa a ser el único activo
-      try { await cloud.sb.auth.signOut({scope: "others"}); } catch(e) {}   // y se cierran las sesiones de otros móviles
+      // y se cierran las sesiones de otros móviles (salvo al creador del sistema, que no tiene límite de dispositivos)
+      if (String(email).toLowerCase() !== "vgonzalom@gmail.com") { try { await cloud.sb.auth.signOut({scope: "others"}); } catch(e) {} }
       cloud.expulsado = false; cloud.vista = "menu";
       await setUser(data.user); renderCloud();
     } catch(e) { toast(cloudError(e)); $("cLogin").disabled = false; $("cLogin").textContent = "Entrar"; }
   };
   $("cLogin").onclick = go_;
+  // ojo: ver u ocultar la contraseña mientras se escribe
+  $("cVer").onclick = () => {
+    const i = $("cPass"), ver = i.type === "password";
+    i.type = ver ? "text" : "password"; $("cVer").textContent = ver ? "🙈" : "👁";
+    $("cVer").title = ver ? "Ocultar contraseña" : "Mostrar contraseña"; i.focus();
+  };
   $("cPass").onkeydown = e => { if (e.key === "Enter") go_(); };
 }
 

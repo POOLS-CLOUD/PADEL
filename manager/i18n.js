@@ -129,7 +129,7 @@
     "🔒 Cerrar también reservas": "🔒 Close the waiting list too",
     "↩️ Deshacer sorteo": "↩️ Undo draw", "Deshacer": "Undo", "↩️ Sorteo deshecho": "↩️ Draw undone",
     "Sorteando…": "Drawing…",
-    "📞 Llamar": "📞 Call", "🔁 Nueva semana": "🔁 Next week", "Crear": "Create", "📣 Telegram": "📣 Telegram", "📣 Canal de Telegram": "📣 Telegram channel",
+    "📞 Llamar": "📞 Call", "Mostrar contraseña": "Show password", "Ocultar contraseña": "Hide password", "🔁 Nueva semana": "🔁 Next week", "Crear": "Create", "📣 Telegram": "📣 Telegram", "📣 Canal de Telegram": "📣 Telegram channel",
     "(se publicarán las novedades del evento)": "(event updates will be posted there)", "Sin canal": "No channel", "＋ Vincular": "＋ Link",
     "📣 Vincular un canal de Telegram": "📣 Link a Telegram channel", "📋 Copiar código": "📋 Copy code", "📋 Código copiado": "📋 Code copied",
     "⏳ Esperando a que publiques el código…": "⏳ Waiting for you to post the code…", "Cerrar": "Close",
