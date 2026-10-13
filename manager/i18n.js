@@ -285,6 +285,8 @@
     [/^☁ Usar las pistas publicadas de (.+)$/, "☁ Use the published courts from $1"],
     [/^Cargadas las pistas de (.+)$/, "Loaded the courts from $1"],
     [/^Plazas$/, "Places"],
+    [/^👁 Las pistas ya se ven en la web y en Telegram$/, "👁 The courts are now visible on the web and on Telegram"],
+    [/^🙈 Las pistas quedan ocultas en la web y en Telegram$/, "🙈 The courts are now hidden on the web and on Telegram"],
     [/^Ya hay un evento con ese nombre, ese día y a esa hora\. Cambia la hora o el nombre\.$/, "There is already an event with that name, on that day and at that time. Change the time or the name."],
     [/^🎾 Próximas competiciones: elige la tuya y apúntate 👉 (.+)$/, "🎾 Upcoming competitions: pick yours and sign up 👉 $1"],
     [/^📞 Teléfono de (.+) guardado$/, "📞 $1's phone saved"],

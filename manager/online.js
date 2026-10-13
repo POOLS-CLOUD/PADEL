@@ -832,7 +832,13 @@ window.renderCloudSorteo = () => {
     const { error } = await cloud.sb.from("pools").update({mostrar_sorteo: mostrar}).eq("id", p.id);
     if (error) throw error;
     await reloadPool();
-    toast(mostrar ? "👁 Las pistas ya se ven en la web" : "🙈 Las pistas quedan ocultas en la web");
+    // y en Telegram: el mensaje del evento se sustituye por uno con las pistas (o sin ellas, si se ocultan)
+    let tg = "";
+    if (p.telegram_canal && cloud.sorteado) {
+      const r = await cloud.sb.rpc("telegram_republicar", {p_pool: p.id});
+      tg = r.error ? (r.error.code === "PGRST202" ? " (para Telegram falta ejecutar cambio_35_telegram_republicar.sql)" : " (Telegram no se ha podido actualizar)") : " y en Telegram";
+    }
+    toast((mostrar ? "👁 Las pistas ya se ven en la web" : "🙈 Las pistas quedan ocultas en la web") + tg);
   }).then(() => window.renderCloudSorteo());
 };
 
