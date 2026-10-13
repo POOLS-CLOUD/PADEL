@@ -64,10 +64,13 @@ header h1{margin:0;font-size:20px;flex:1;min-width:0;white-space:nowrap;overflow
 .modal .box{background:var(--card);color:var(--ink);border-radius:16px;padding:18px;max-width:420px;width:100%}
 .modal p{margin:0 0 16px;white-space:pre-line}
 .modal .row{justify-content:flex-end}
-.steps{display:flex;gap:6px;margin-top:10px}
-.steps button{flex:1;border:0;border-radius:8px;padding:7px 2px;font:600 12px system-ui;background:rgba(255,255,255,.18);color:inherit}
+.steps{display:flex;gap:4px;margin-top:10px;align-items:center}
+.steps button{flex:1;border:0;border-radius:8px;padding:7px 2px;font:600 12px system-ui;background:rgba(255,255,255,.18);color:inherit;display:flex;align-items:center;justify-content:center;gap:5px;min-width:0}
 .steps button.on{background:var(--accent-ink);color:var(--accent)}
-main{padding:16px;max-width:640px;margin:0 auto;padding-bottom:110px}
+.steps .n{flex:none;display:inline-grid;place-items:center;width:19px;height:19px;border-radius:50%;background:rgba(255,255,255,.92);color:var(--accent);font:800 11px system-ui}
+.steps button.on .n{background:var(--accent);color:#fff}
+.steps .arr{flex:none;font:700 15px system-ui;opacity:.85}
+main{padding:16px;max-width:640px;margin:0 auto;padding-bottom:40px}
 h2{font-size:18px;margin:0 0 4px}
 p.help{color:var(--muted);margin:0 0 14px;font-size:14px}
 .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:12px}
@@ -121,6 +124,7 @@ button{font:inherit;cursor:pointer}
 .checks li{padding:3px 0}
 .bar{position:fixed;left:0;right:0;bottom:0;background:var(--card);border-top:1px solid var(--line);padding:10px 16px calc(10px + env(safe-area-inset-bottom));display:flex;gap:10px;justify-content:space-between;z-index:5}
 .bar .btn{flex:1}
+.bar[hidden]{display:none!important}
 details summary{cursor:pointer;font-weight:600;color:var(--accent)}
 .hidden{display:none!important}
 .pill.okp{background:var(--accent-soft);color:var(--accent)} .pill.warnp{background:var(--warn-soft);color:var(--warn)}
@@ -143,14 +147,14 @@ input[type=email],input[type=password],input[type=date],input[type=number]{width
 .toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:9px 16px;border-radius:999px;font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:9}
 .toast.on{opacity:1}
 </style>
-<script>window.APP_VERSION = "3.10";</script></head>
+<script>window.APP_VERSION = "3.11";</script></head>
 <body>
 <header>
   <div class="toprow"><h1>Sport Events<small style="display:block;font-size:.55em;font-weight:600;opacity:.8;letter-spacing:.04em">MANAGER <span id="appVer" style="opacity:.8"></span></small></h1><button class="langbtn" id="bLang" type="button" aria-label="Idioma / Language"></button><button class="cloudbtn" id="cloudTab" title="Inicio" aria-label="Inicio">🏠</button><button class="reset" id="resetAll" title="Reset" aria-label="Reset">⟲</button></div>
   <div class="steps" id="steps">
-    <button data-s="0">Info evento</button>
-    <button data-s="2">Jugadores</button>
-    <button data-s="4">Asignar pistas</button>
+    <button data-s="0"><span class="n">1</span>Info evento</button><span class="arr" aria-hidden="true">→</span>
+    <button data-s="2"><span class="n">2</span>Jugadores</button><span class="arr" aria-hidden="true">→</span>
+    <button data-s="4"><span class="n">3</span>Asignar pistas</button>
   </div>
 </header>
 
@@ -279,7 +283,7 @@ input[type=email],input[type=password],input[type=date],input[type=number]{width
 
 <datalist id="knownNames"></datalist>
 
-<div class="bar">
+<div class="bar" hidden>
   <button class="btn ghost" id="prev">‹ Atrás</button>
   <button class="btn primary" id="next">Siguiente ›</button>
 </div>
