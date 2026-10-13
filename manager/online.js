@@ -393,13 +393,44 @@ async function apuntarFijos(pool, nombres, numeros = []){
       if (b && recall(a.n) === "M" && recall(b.n) === "H") { [a.pos, b.pos] = [b.pos, a.pos]; pend.set(a.pos, a.n); pend.set(b.pos, b.n); }
     });
     // ¿alguna pareja no encaja con el tipo de evento? Se pregunta (sin mover a nadie)
-    const vistas = new Set(), malas = [];
-    nuevos.forEach(x => {
-      if (x.pos == null || vistas.has(x.pos >> 1)) return;
-      const mal = parejaNoValida(pool, x.n, x.pos, pend);
-      if (mal) { vistas.add(x.pos >> 1); malas.push(`P${(x.pos >> 1) + 1}: ${mal}`); }
-    });
-    if (malas.length && !await ask(`⚠️ Según el sexo que recuerda la app, ${malas.length === 1 ? "esta pareja no encaja" : "estas parejas no encajan"} con el tipo de evento:\n\n• ${malas.join("\n• ")}\n\n¿Apuntarlos igualmente en este orden? (Si el sexo está mal, corrígelo después en «Jugadores» con H / M.)`, "Sí, apuntar en este orden", null, "Cancelar")) return 0;
+    const listaMalas = () => {
+      const vistas = new Set(), malas = [];
+      nuevos.forEach(x => {
+        if (x.pos == null || vistas.has(x.pos >> 1)) return;
+        const mal = parejaNoValida(pool, x.n, x.pos, pend);
+        if (mal) { vistas.add(x.pos >> 1); malas.push(`P${(x.pos >> 1) + 1}: ${mal}`); }
+      });
+      return malas;
+    };
+    // «Corregir ahora» (mixto): dentro de cada pareja, el chico al hueco ♂ y la chica al ♀ (nadie cambia de pareja)
+    const corregir = () => {
+      let n = 0;
+      const malLado = (nombre, k) => { const g = recall(nombre); return g === "H" ? k % 2 : g === "M" ? 1 - k % 2 : 0; };
+      nuevos.forEach(a => {
+        if (a.pos == null || a.pos % 2) return;
+        const b = nuevos.find(x => x.pos === a.pos + 1), libre = !b && !ocupados.has(a.pos + 1) ? a.pos + 1 : null;
+        if (b) {
+          if (malLado(a.n, a.pos) + malLado(b.n, b.pos) > malLado(a.n, b.pos) + malLado(b.n, a.pos)) { [a.pos, b.pos] = [b.pos, a.pos]; pend.set(a.pos, a.n); pend.set(b.pos, b.n); n++; }
+        } else if (libre != null && malLado(a.n, a.pos)) { pend.delete(a.pos); ocupados.delete(a.pos); a.pos = libre; ocupados.add(libre); pend.set(libre, a.n); n++; }
+      });
+      nuevos.forEach(b => {   // alguien solo en un hueco ♀ que es chico: al ♂ de su pareja si está libre
+        if (b.pos == null || !(b.pos % 2) || nuevos.some(x => x.pos === b.pos - 1) || ocupados.has(b.pos - 1) || !malLado(b.n, b.pos)) return;
+        pend.delete(b.pos); ocupados.delete(b.pos); b.pos -= 1; ocupados.add(b.pos); pend.set(b.pos, b.n); n++;
+      });
+      return n;
+    };
+    let malas = listaMalas(), intentado = false;
+    while (malas.length) {
+      const puedeCorregir = (pool.tipo_sorteo || "mixto") === "mixto" && !intentado;
+      const r = await elegir(`⚠️ Según el sexo que recuerda la app, ${malas.length === 1 ? "esta pareja no encaja" : "estas parejas no encajan"} con el tipo de evento:\n\n• ${malas.join("\n• ")}\n\n¿Qué hago?`,
+        [...(puedeCorregir ? [["corregir", "🔀 Corregir ahora (♂ izquierda, ♀ derecha)", "primary"]] : []), ["asi", "Apuntar así, lo corrijo yo después", ""], ["no", "Cancelar", "ghost"]]);
+      if (r === "no" || r == null) return 0;
+      if (r === "asi") break;
+      intentado = true;
+      if (!corregir()) { await avisar("No se puede corregir solo cambiando de lado: hay parejas de dos chicos o dos chicas. Apúntalos así y cámbialos de pareja en «Jugadores» con los desplegables P1, P2…"); }
+      malas = listaMalas();
+      if (!malas.length) toast("🔀 Corregido: cada chico en ♂ y cada chica en ♀");
+    }
     const sinHueco = nuevos.filter(x => x.pos == null).map(x => x.n);
     if (sinHueco.length) setTimeout(() => avisar(`⚠️ No queda hueco libre para: ${sinHueco.join(", ")}`), 300);
   }
@@ -466,6 +497,16 @@ window.reordenarParejas = async jugadores => {
   });
   if (state.step === 2) renderPlayers();
 };
+// Ventana con varias opciones: devuelve la clave del botón pulsado
+function elegir(msg, opciones){
+  return new Promise(res => {
+    const m = document.createElement("div"); m.className = "modal";
+    m.innerHTML = `<div class="box"><p style="white-space:pre-line;margin:0 0 14px">${esc(msg)}</p>
+      <div style="display:grid;gap:8px">${opciones.map(([k, t, c]) => `<button class="btn ${c}" data-op="${esc(k)}" style="width:100%">${esc(t)}</button>`).join("")}</div></div>`;
+    document.body.appendChild(m);
+    m.querySelectorAll("[data-op]").forEach(b => b.onclick = () => { m.remove(); res(b.dataset.op); });
+  });
+}
 // Aviso con un solo botón
 async function avisar(msg){ $("modalNo").classList.add("hidden"); try { await ask(msg, "Entendido"); } finally { $("modalNo").classList.remove("hidden"); } }
 function parejaNoValida(pool, nombre, k, pendientes){
