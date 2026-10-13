@@ -428,6 +428,34 @@ async function ofrecerMixto(pool, nombres){
   state.modo = "mixto"; save();
   toast("👫 Evento cambiado a mixto");
 }
+// «🔀 Reordenar parejas»: cada jugador con la pareja elegida (P1, P2…). Como mucho 2 por pareja y,
+// según el tipo de evento, nada de dos chicos o dos chicas en mixto, chicas en masculino o chicos en femenino.
+window.reordenarParejas = async jugadores => {
+  const p = cloud.pool; if (!p || !p.parejas_fijas) return;
+  const grupos = new Map();
+  jugadores.forEach(j => { if (!grupos.has(j.par)) grupos.set(j.par, []); grupos.get(j.par).push(j); });
+  const llenas = [...grupos].filter(([, l]) => l.length > 2);
+  if (llenas.length) { await avisar(`⚠️ Cada pareja tiene como mucho 2 jugadores:\n\n${llenas.map(([k, l]) => `• P${k}: ${l.map(j => j.name).join(", ")}`).join("\n")}\n\nCambia la P de alguno y vuelve a pulsar «Reordenar».`); return; }
+  const tipo = p.tipo_sorteo || "mixto", malas = [];
+  if (["mixto", "chicos", "chicas"].includes(tipo)) grupos.forEach((l, k) => {
+    const g = l.map(j => recall(j.name));
+    if (tipo === "chicos" && g.includes("M")) malas.push(`P${k}: ${l.map(j => j.name).join(" + ")} (el evento es masculino)`);
+    else if (tipo === "chicas" && g.includes("H")) malas.push(`P${k}: ${l.map(j => j.name).join(" + ")} (el evento es femenino)`);
+    else if (tipo === "mixto" && l.length === 2 && g[0] && g[0] === g[1]) malas.push(`P${k}: ${l.map(j => j.name).join(" + ")} (${g[0] === "H" ? "dos chicos" : "dos chicas"} en un evento mixto)`);
+  });
+  if (malas.length) { await avisar(`⚠️ Estas parejas no encajan con el tipo de evento:\n\n• ${malas.join("\n• ")}`); return; }
+  // cada pareja en sus dos huecos (P1 → 1 y 2, P2 → 3 y 4…), en el orden en que estaban
+  const ids = [], pos = [];
+  grupos.forEach((l, k) => l.sort((a, b) => a.num - b.num).forEach((j, n) => { ids.push(j.id); pos.push(2 * (k - 1) + n); }));
+  if (pos.some(x => x >= p.max_jugadores)) { toast("No caben tantas parejas en la lista de este evento"); return; }
+  await guard(async () => {
+    const r = await cloud.sb.rpc("reordenar_parejas", {p_pool: p.id, p_ids: ids, p_pos: pos});
+    if (r.error) throw new Error(r.error.code === "PGRST202" ? "Falta ejecutar cambio_37_reordenar_parejas.sql en Supabase" : cloudError(r.error));
+    await loadInscritos();
+    toast("🔀 Parejas reordenadas");
+  });
+  if (state.step === 2) renderPlayers();
+};
 // Aviso con un solo botón
 async function avisar(msg){ $("modalNo").classList.add("hidden"); try { await ask(msg, "Entendido"); } finally { $("modalNo").classList.remove("hidden"); } }
 function parejaNoValida(pool, nombre, k, pendientes){
@@ -488,6 +516,7 @@ async function apuntarEnPuesto(pool, nombre, num){
 function cloudError(e){
   const m = String(e && (e.message || e.error_description) || e);
   if (/Invalid login credentials/i.test(m)) return "Email o contraseña incorrectos.";
+  if (/HUECO_OCUPADO|HUECO_REPETIDO/.test(m)) return "Alguno de esos huecos ya está ocupado. Recarga y vuelve a intentarlo.";
   if (/PAREJA_MIXTA/.test(m)) return "En una pareja mixta no puede haber dos chicos ni dos chicas.";
   if (/PAREJA_SOLO_CHICOS/.test(m)) return "La asignación es masculina: solo pueden apuntarse chicos.";
   if (/PAREJA_SOLO_CHICAS/.test(m)) return "La asignación es femenina: solo pueden apuntarse chicas.";

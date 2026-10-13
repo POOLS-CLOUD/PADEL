@@ -94,6 +94,10 @@ button{font:inherit;cursor:pointer}
 .gender label.m.sel{background:var(--woman-soft);color:var(--woman)}
 .plist{list-style:none;margin:0;padding:0}
 .plist li{display:flex;align-items:center;gap:8px;padding:8px 0;border-top:1px solid var(--line)}
+.plist .psel{flex:none;width:auto;min-width:58px;padding:4px 6px;font:700 13px system-ui;border-radius:8px;border:1px solid var(--accent);color:var(--accent);background:var(--accent-soft)}
+.plist .psel.cambio{background:var(--warn-soft);border-color:var(--warn);color:var(--warn)}
+.plist .ptag{flex:none;font:700 12px system-ui;color:var(--accent);background:var(--accent-soft);border-radius:6px;padding:3px 6px}
+.plist li.parfin{border-top:2px solid var(--accent)}
 .plist li:first-child{border-top:0}
 .plist .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500;cursor:pointer;border-radius:6px;padding:4px 2px}
 .plist .nm:active{background:var(--accent-soft)}
@@ -147,7 +151,7 @@ input[type=email],input[type=password],input[type=date],input[type=number]{width
 .toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:9px 16px;border-radius:999px;font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:9}
 .toast.on{opacity:1}
 </style>
-<script>window.APP_VERSION = "3.15";</script></head>
+<script>window.APP_VERSION = "3.16";</script></head>
 <body>
 <header>
   <div class="toprow"><h1>Sport Events<small style="display:block;font-size:.55em;font-weight:600;opacity:.8;letter-spacing:.04em">MANAGER <span id="appVer" style="opacity:.8"></span></small></h1><button class="langbtn" id="bLang" type="button" aria-label="Idioma / Language"></button><button class="cloudbtn" id="cloudTab" title="Inicio" aria-label="Inicio">🏠</button><button class="reset" id="resetAll" title="Reset" aria-label="Reset">⟲</button></div>
@@ -216,6 +220,7 @@ input[type=email],input[type=password],input[type=date],input[type=number]{width
     </div>
 
     <div class="card">
+      <div id="pReord"></div>
       <ul class="plist" id="plist"></ul>
       <div id="emptyPlayers" style="color:var(--muted);font-size:14px">Todavía no hay jugadores.</div>
       <div class="stats" id="stats"></div>
@@ -595,14 +600,27 @@ $("clearPlayers").onclick = async () => { if (!state.players.length || await ask
 function renderPlayers(){
   const ul = $("plist"); ul.innerHTML = "";
   state.players.forEach(p => { if (!p.num) p.num = nextNum(); });   // listas de versiones anteriores
+  // parejas fijas: cada jugador con su pareja (P1, P1, P2, P2…) y, en un evento online, un desplegable para cambiarla
+  const parDe = p => Math.ceil(p.num / 2), conMenu = state.parejasFijas && !!window.reordenarParejas;
+  const nPar = Math.max(Math.ceil(state.players.length / 2), ...state.players.map(parDe), 1);
+  const cambios = state.players.some(p => p._par != null && p._par !== parDe(p));
+  $("pReord").innerHTML = conMenu && state.players.length ? `<div class="row" style="align-items:center;gap:8px;margin:0 0 8px">
+      <button class="btn small${cambios ? " primary" : ""}" id="bReord" ${cambios ? "" : "disabled"}>🔀 Reordenar parejas</button>
+      <span class="help" style="margin:0">${cambios ? "Pulsa para guardar las parejas nuevas" : "Cambia la P de un jugador para moverlo de pareja"}</span></div>` : "";
+  if ($("bReord")) $("bReord").onclick = () => reordenarParejas(state.players.map(p => ({id: p.id, name: p.name, num: p.num, par: p._par ?? parDe(p)})));
   state.players.forEach((p, i) => {
     const li = document.createElement("li");
     const tel = p.id && window.telefonoDe ? telefonoDe(p.id) : "";   // teléfono de contacto (privado, solo organizador)
     const sub = p.id && window.estadoSubida ? estadoSubida(p.id) : {};   // reserva que ha subido a la lista
     const marca = sub.conf ? `<button class="tagok" data-conf="${esc(p.id)}" data-v="0">✓ Reserva confirmado</button>`
       : sub.subio ? `<span class="tagsub">⏳ Pendiente de confirmar${sub.avisado ? " · 📣 avisado" : ""}</span> <button class="tagbtn" data-conf="${esc(p.id)}" data-v="1">✓ Confirmar</button>` : "";
-    li.innerHTML = `<span class="num">${p.num}.</span><span class="nm" style="cursor:default">${esc(p.name)}${tel ? `<a class="tel" href="#" data-tel="${esc(tel)}" data-id="${esc(p.id)}">📞 ${esc(tel)}</a>` : p.id && window.editarTelefono ? `<button type="button" class="tagbtn addtel" data-addtel="1">＋📞</button>` : ""}${marca ? `<span class="marca">${marca}</span>` : ""}</span>
+    if (state.parejasFijas && i > 0 && parDe(p) !== parDe(state.players[i - 1])) li.className = "parfin";
+    const pSel = !state.parejasFijas ? "" : conMenu
+      ? `<select class="psel${p._par != null && p._par !== parDe(p) ? " cambio" : ""}" data-par="${i}">${Array.from({length: nPar}, (_, k) => `<option value="${k + 1}"${(p._par ?? parDe(p)) === k + 1 ? " selected" : ""}>P${k + 1}</option>`).join("")}</select>`
+      : `<span class="ptag">P${parDe(p)}</span>`;
+    li.innerHTML = `<span class="num">${p.num}.</span>${pSel}<span class="nm" style="cursor:default">${esc(p.name)}${tel ? `<a class="tel" href="#" data-tel="${esc(tel)}" data-id="${esc(p.id)}">📞 ${esc(tel)}</a>` : p.id && window.editarTelefono ? `<button type="button" class="tagbtn addtel" data-addtel="1">＋📞</button>` : ""}${marca ? `<span class="marca">${marca}</span>` : ""}</span>
       <div class="gender"><label class="h"><input type="radio" name="g${i}" value="H"> ♂ H</label><label class="m"><input type="radio" name="g${i}" value="M"> ♀ M</label></div>${p.id && window.quitarInscrito ? `<button class="x" title="Quitar del evento">×</button>` : ""}`;
+    if (li.querySelector("[data-par]")) li.querySelector("[data-par]").onchange = e => { p._par = +e.target.value; renderPlayers(); };
     if (li.querySelector(".x")) li.querySelector(".x").onclick = () => quitarInscrito(p.id);
     if (li.querySelector("[data-addtel]")) li.querySelector("[data-addtel]").onclick = () => editarTelefono(p.id, p.name);
     li.querySelectorAll("[data-conf]").forEach(b => b.onclick = async () => {
