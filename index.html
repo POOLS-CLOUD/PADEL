@@ -411,22 +411,29 @@ const DEMO = params.has("demo");
 const CODIGO = (params.get("pool") || "").toUpperCase();
 
 function supabaseBackend(){
-  const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {auth: {persistSession: false}});
-  // Administrador: si en este navegador se ha entrado en la Manager web (manager/), se usa esa sesión para
-  // apuntar jugadores sin el límite de 2 por móvil. Si la sesión ya no vale, se apunta como cualquiera.
+  // conexión pública: con su propia clave de sesión, para no esperar nunca a la de la Manager web (misma dirección)
+  const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {auth: {persistSession: false, autoRefreshToken: false, storageKey: "sb-web-publica"}});
+  // Administrador: si en este navegador se ha entrado en la Manager web (manager/), para apuntarse se usa su sesión
+  // (solo se lee, sin abrir otra conexión) y así no hay límite de 2 por móvil. Si no vale, se apunta como cualquiera.
   const SB_SESION = "sb.sb-" + new URL(SUPABASE_URL).hostname.split(".")[0] + "-auth-token";
-  let sbAdmin = null;
-  try {
-    if (localStorage.getItem(SB_SESION)) sbAdmin = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {auth: {persistSession: true, autoRefreshToken: false, detectSessionInUrl: false,
-      storage: {getItem: k => localStorage.getItem("sb." + k), setItem: (k, v) => localStorage.setItem("sb." + k, v), removeItem: k => localStorage.removeItem("sb." + k)}}});
-  } catch(e) { sbAdmin = null; }
-  window.esAdminWeb = () => !!sbAdmin;
-  // apuntarse: primero con la sesión de administrador (si la hay); si falla por la sesión, como público
+  const tokenAdmin = () => {
+    try {
+      const v = JSON.parse(localStorage.getItem(SB_SESION) || "null"), s = v && (v.currentSession || v);
+      return s && s.access_token && (!s.expires_at || s.expires_at * 1000 > Date.now() + 30000) ? s.access_token : null;
+    } catch(e) { return null; }
+  };
+  window.esAdminWeb = () => !!tokenAdmin();
+  // apuntarse: primero con la sesión de administrador (si la hay y no ha caducado); si la rechaza, como público
   const rpcApuntarse = async args => {
-    if (sbAdmin) {
-      const r = await sbAdmin.rpc("apuntarse", args);
-      if (!r.error || !/JWT|jwt|token|401|PGRST30/.test(String(r.error.message || r.error.code || ""))) return r;
-      sbAdmin = null;
+    const t = tokenAdmin();
+    if (t) {
+      try {
+        const r = await fetch(SUPABASE_URL + "/rest/v1/rpc/apuntarse", {method: "POST",
+          headers: {"Content-Type": "application/json", apikey: SUPABASE_KEY, Authorization: "Bearer " + t}, body: JSON.stringify(args)});
+        const j = await r.json().catch(() => null);
+        if (r.ok) return {data: j, error: null};
+        if (r.status !== 401 && !/JWT|jwt/.test(String(j && (j.message || j.code) || ""))) return {data: null, error: j || {message: "Error " + r.status}};
+      } catch(e) { /* sin conexión con la sesión: se prueba como público */ }
     }
     return sb.rpc("apuntarse", args);
   };
