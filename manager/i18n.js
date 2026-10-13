@@ -129,7 +129,7 @@
     "🔒 Cerrar también reservas": "🔒 Close the waiting list too",
     "↩️ Deshacer asignación": "↩️ Undo court assignment", "Deshacer": "Undo", "↩️ Asignación deshecha": "↩️ Court assignment undone",
     "Asignando…": "Assigning…",
-    "📞 Llamar": "📞 Call", "🔐 Asignación de pistas 100 % aleatoria (criptográfica)": "🔐 100% random court assignment (cryptographic)",
+    "📞 Llamar": "📞 Call", "Parejas de reserva": "Reserve pairs", "🔐 Asignación de pistas 100 % aleatoria (criptográfica)": "🔐 100% random court assignment (cryptographic)",
     "Cada pareja va a una pista totalmente al azar, sin intentar evitar que repita la pista de la semana pasada.": "Each pair goes to a fully random court, without trying to avoid last week's court.",
     "🔐 Pistas asignadas 100 % al azar (criptográfico), sin evitar repetir pista": "🔐 Courts assigned 100% at random (cryptographic), without avoiding repeats",
     "Pistas asignadas al azar, evitando repetir pista": "Courts assigned at random, avoiding repeated courts",

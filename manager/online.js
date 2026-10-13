@@ -255,7 +255,7 @@ function poolFormHtml(px, v, boton){
         <input type="checkbox" id="${px}Fijas" ${v.parejas_fijas ? "checked" : ""} style="width:22px;height:22px;margin:0">
         Parejas fijas <span class="help" style="font-weight:400">(se apuntan por parejas y solo se asignan las pistas)</span></label>
       <div class="row"><label class="lbl" style="flex:1">Pistas <span class="help" id="${px}Plazas">(${Math.max(1, Math.round((v.max_jugadores || 20) / 4)) * 4} plazas)</span><select id="${px}Pistas">${opciones1a10(Math.max(1, Math.round((v.max_jugadores || 20) / 4)))}</select></label>
-        <label class="lbl" style="flex:1">Reservas<select id="${px}Res">${opciones1a10(v.max_reservas ?? 10)}</select></label></div>
+        <label class="lbl" style="flex:1"><span id="${px}ResLbl">${v.parejas_fijas ? "Parejas de reserva" : "Reservas"}</span><select id="${px}Res">${opciones1a10(v.parejas_fijas ? Math.min(10, Math.max(1, Math.ceil((v.max_reservas ?? 10) / 2))) : (v.max_reservas ?? 10))}</select></label></div>
       <div class="lbl">👥 Otros administradores <span class="help" style="font-weight:400">(podrán ver y gestionar este evento)</span>
         <div class="row" style="margin-top:4px"><input type="email" id="${px}AdmIn" placeholder="email@ejemplo.com" autocomplete="off" style="flex:1"><button type="button" class="btn small" id="${px}AdmAdd">Añadir</button></div>
         <div class="chips" id="${px}Adm" style="margin-top:6px">${adminsChips(px)}</div></div>
@@ -266,7 +266,7 @@ function readPoolForm(px){
   const dep = $(px + "Dep").querySelector(".modo.on"), tipo = $(px + "Tipo").querySelector(".modo.on");
   return {deporte: dep ? dep.dataset.dep : "padel", tipo_sorteo: tipo && !(tipo.dataset.tipo === "aleatorio" && $(px + "Fijas").checked) ? tipo.dataset.tipo : "mixto", club: $(px + "Club").value.trim() || null, parejas_fijas: $(px + "Fijas").checked,
     fecha: $(px + "Date").value, titulo: $(px + "Title").value.trim(), horario: $(px + "Hor").value.trim(), importe: $(px + "Imp").value.trim(),
-    notas: $(px + "Notas").value.trim() || null, max_jugadores: Math.max(1, Math.round(+$(px + "Pistas").value) || 5) * 4,   /* 4 plazas por pista */ max_reservas: Math.max(0, +$(px + "Res").value || 0)};
+    notas: $(px + "Notas").value.trim() || null, max_jugadores: Math.max(1, Math.round(+$(px + "Pistas").value) || 5) * 4,   /* 4 plazas por pista */ max_reservas: Math.max(0, +$(px + "Res").value || 0) * ($(px + "Fijas").checked ? 2 : 1)};
 }
 function wirePoolForm(px){
   const dep = $(px + "Dep");
@@ -284,6 +284,12 @@ function wirePoolForm(px){
     if (f && al.classList.contains("on")) { al.classList.remove("on"); tipo.querySelector('[data-tipo="mixto"]').classList.add("on"); }
   };
   if (fijas) fijas.addEventListener("change", ajustarFijas);
+  // al marcar o desmarcar «Parejas fijas», las reservas pasan a contarse por parejas (y al revés)
+  if (fijas && $(px + "Res")) fijas.addEventListener("change", () => {
+    const sel = $(px + "Res"), n = +sel.value || 1;
+    $(px + "ResLbl").textContent = fijas.checked ? "Parejas de reserva" : "Reservas";
+    sel.value = String(fijas.checked ? Math.max(1, Math.ceil(n / 2)) : Math.min(10, n * 2));
+  });
   ajustarFijas();
   wireClubChips(px);
   const dt = $(px + "Date");
@@ -717,7 +723,7 @@ window.renderCloudPlayersInfo = () => {
       </div></div>`;
   // reservas: no entran en el sorteo, pero se pueden quitar desde aquí
   const reservas = partir(p, cloud.inscritos).reservas;
-  $("cloudReservas").innerHTML = reservas.length ? `<div class="card"><div style="font-weight:700;margin-bottom:6px">Reservas <span class="help">(no entran en la asignación de pistas)</span></div>
+  $("cloudReservas").innerHTML = reservas.length ? `<div class="card"><div style="font-weight:700;margin-bottom:6px">${p.parejas_fijas ? "Parejas de reserva" : "Reservas"} <span class="help">(no entran en la asignación de pistas)</span></div>
     <ul class="plist">${reservas.map((i, k) => `<li><span class="num">R${p.parejas_fijas ? Math.floor((i.posicion - p.max_jugadores) / 2) + 1 : k + 1}.</span><span class="nm" style="cursor:default">${esc(i.nombre)}${(cloud.telefonos || {})[i.id] ? `<a class="tel" href="#" data-tel="${esc(cloud.telefonos[i.id])}" data-id="${esc(i.id)}">📞 ${esc(cloud.telefonos[i.id])}</a>` : `<button type="button" class="tagbtn addtel" data-addtel="${esc(i.id)}" data-nombre="${esc(i.nombre)}">＋📞</button>`}</span>
       <button class="x" data-quitar="${esc(i.id)}" title="Quitar del evento">×</button></li>`).join("")}</ul></div>` : "";
   $("cloudReservas").querySelectorAll("[data-quitar]").forEach(b => b.onclick = () => quitarInscrito(b.dataset.quitar));

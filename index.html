@@ -280,7 +280,7 @@ const TXT = {
     you: "TÚ", removeMe: "Borrarme",
     pairsTitle: "Las parejas", pairsSmall: "ponte al lado de tu compañero",
     pairsHelp: "Toca «Apuntarme aquí» en un hueco libre. Si tu pareja ya está apuntada, ocupa el hueco de su lado.",
-    joinHere: "＋ Apuntarme aquí", free: "Libre", reserves: "Reservas", reservePairs: "parejas de reserva",
+    joinHere: "＋ Apuntarme aquí", free: "Libre", reserves: "Reservas", reservePairs: "una fila por pareja", reservePairsTitle: "Parejas de reserva",
     list: "La lista", listSmall: "por orden de inscripción", reservesSmall: "entran por orden si alguien se borra", noReserves: "Nadie en reservas.",
     moves: "Movimientos", signsUp: "se apunta", dropsOut: "se borra",
     twoFromHere: "Ya hay 2 apuntados desde este móvil", allFull: "Lista y reservas completas",
@@ -329,7 +329,7 @@ const TXT = {
     you: "YOU", removeMe: "Remove me",
     pairsTitle: "The pairs", pairsSmall: "sign up next to your partner",
     pairsHelp: "Tap «Sign up here» on a free spot. If your partner is already signed up, take the spot next to them.",
-    joinHere: "＋ Sign up here", free: "Free", reserves: "Waiting list", reservePairs: "reserve pairs",
+    joinHere: "＋ Sign up here", free: "Free", reserves: "Waiting list", reservePairs: "one row per pair", reservePairsTitle: "Reserve pairs",
     list: "The list", listSmall: "in order of sign-up", reservesSmall: "they move up in order if someone drops out", noReserves: "Nobody on the waiting list.",
     moves: "Activity", signsUp: "signs up", dropsOut: "drops out",
     twoFromHere: "2 people already signed up from this phone", allFull: "List and waiting list full",
@@ -667,7 +667,7 @@ function vistaPool(){
       p.estado === "abierta" ? h("p", {style: "color:var(--muted);font-size:14px;margin:0 2px 10px"}, T().pairsHelp) : null,
       h("div", {class: "pairs"}, filas(0, max, "P"))));
     const maxRes = p.max_reservas ?? 0;
-    if (maxRes >= 2) main.append(h("section", {}, h("h2", {}, T().reserves, h("small", {}, T().reservePairs)), h("div", {class: "pairs"}, filas(max, max + maxRes - maxRes % 2, "R"))));
+    if (maxRes >= 2) main.append(h("section", {}, h("h2", {}, T().reservePairsTitle, h("small", {}, T().reservePairs)), h("div", {class: "pairs"}, filas(max, max + maxRes - maxRes % 2, "R"))));
   } else {
     const free = [];
     for (let k = lista.length; k < max; k++) free.push(h("li", {class: "free"}, h("span", {class: "n"}, (k + 1) + "."), h("span", {class: "nm"}, T().free)));
