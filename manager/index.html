@@ -96,6 +96,8 @@ button{font:inherit;cursor:pointer}
 .plist li{display:flex;align-items:center;gap:8px;padding:8px 0;border-top:1px solid var(--line)}
 .plist .psel{flex:none;width:auto;min-width:58px;padding:4px 6px;font:700 13px system-ui;border-radius:8px;border:1px solid var(--accent);color:var(--accent);background:var(--accent-soft)}
 .plist .psel.cambio{background:var(--warn-soft);border-color:var(--warn);color:var(--warn)}
+.plist .nmedit{cursor:pointer;border-bottom:1px dashed var(--muted)}
+.plist .nmedit small{font-size:11px;opacity:.6}
 .plist .ptag{flex:none;font:700 12px system-ui;color:var(--accent);background:var(--accent-soft);border-radius:6px;padding:3px 6px}
 .plist li.parfin{border-top:2px solid var(--accent)}
 .plist li:first-child{border-top:0}
@@ -151,7 +153,7 @@ input[type=email],input[type=password],input[type=date],input[type=number]{width
 .toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:9px 16px;border-radius:999px;font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:9}
 .toast.on{opacity:1}
 </style>
-<script>window.APP_VERSION = "3.21";</script></head>
+<script>window.APP_VERSION = "3.22";</script></head>
 <body>
 <header>
   <div class="toprow"><h1>Sport Events<small style="display:block;font-size:.55em;font-weight:600;opacity:.8;letter-spacing:.04em">MANAGER <span id="appVer" style="opacity:.8"></span></small></h1><button class="langbtn" id="bLang" type="button" aria-label="Idioma / Language"></button><button class="cloudbtn" id="cloudTab" title="Inicio" aria-label="Inicio">🏠</button><button class="reset" id="resetAll" title="Reset" aria-label="Reset">⟲</button></div>
@@ -622,9 +624,10 @@ function renderPlayers(){
     const pSel = !state.parejasFijas ? "" : conMenu
       ? `<select class="psel${p._par != null && p._par !== parDe(p) ? " cambio" : ""}" data-par="${i}">${Array.from({length: nPar}, (_, k) => `<option value="${k + 1}"${(p._par ?? parDe(p)) === k + 1 ? " selected" : ""}>P${k + 1}</option>`).join("")}</select>`
       : `<span class="ptag">P${parDe(p)}</span>`;
-    li.innerHTML = `<span class="num">${p.num}.</span>${pSel}<span class="nm" style="cursor:default">${esc(p.name)}${tel ? `<a class="tel" href="#" data-tel="${esc(tel)}" data-id="${esc(p.id)}">📞 ${esc(tel)}</a>` : p.id && window.editarTelefono ? `<button type="button" class="tagbtn addtel" data-addtel="1">＋📞</button>` : ""}${marca ? `<span class="marca">${marca}</span>` : ""}</span>
+    li.innerHTML = `<span class="num">${p.num}.</span>${pSel}<span class="nm" style="cursor:default">${p.id && window.editarJugador ? `<span class="nmedit" data-editar="1" title="Editar nombre y teléfono">${esc(p.name)} <small>✏️</small></span>` : esc(p.name)}${tel ? `<a class="tel" href="#" data-tel="${esc(tel)}" data-id="${esc(p.id)}">📞 ${esc(tel)}</a>` : p.id && window.editarTelefono ? `<button type="button" class="tagbtn addtel" data-addtel="1">＋📞</button>` : ""}${marca ? `<span class="marca">${marca}</span>` : ""}</span>
       <div class="gender"><label class="h"><input type="radio" name="g${i}" value="H"> ♂ H</label><label class="m"><input type="radio" name="g${i}" value="M"> ♀ M</label></div>${p.id && window.quitarInscrito ? `<button class="x" title="Quitar del evento">×</button>` : ""}`;
     if (li.querySelector("[data-par]")) li.querySelector("[data-par]").onchange = e => { p._par = +e.target.value; renderPlayers(); };
+    if (li.querySelector("[data-editar]")) li.querySelector("[data-editar]").onclick = () => editarJugador(p.id, p.name);
     if (li.querySelector(".x")) li.querySelector(".x").onclick = () => quitarInscrito(p.id);
     if (li.querySelector("[data-addtel]")) li.querySelector("[data-addtel]").onclick = () => editarTelefono(p.id, p.name);
     li.querySelectorAll("[data-conf]").forEach(b => b.onclick = async () => {

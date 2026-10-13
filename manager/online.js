@@ -1260,6 +1260,37 @@ function wireCloud(){
 }
 
 window.telefonoDe = id => (cloud.telefonos || {})[id] || "";
+// Editar nombre y teléfono de un apuntado (el teléfono va con la inscripción; el sexo recordado pasa al nombre nuevo)
+window.editarJugador = (id, nombre) => new Promise(res => {
+  const tel = telefonoDe(id), m = document.createElement("div"); m.className = "modal";
+  m.innerHTML = `<div class="box"><p style="margin:0 0 10px;font-weight:700">✏️ Editar jugador</p>
+    <label class="lbl">Nombre<input type="text" id="ejNombre" maxlength="40" value="${esc(nombre)}"></label>
+    <label class="lbl" style="margin-top:8px">Teléfono <span class="help" style="font-weight:400">(solo lo ven los administradores; vacío para quitarlo)</span><input type="tel" id="ejTel" maxlength="20" value="${esc(tel)}" inputmode="tel"></label>
+    <div class="row" style="margin-top:14px;gap:8px"><button class="btn ghost" id="ejNo" style="flex:1">Cancelar</button><button class="btn primary" id="ejSi" style="flex:1">Guardar</button></div></div>`;
+  document.body.appendChild(m);
+  const cerrar = v => { m.remove(); res(v); };
+  m.querySelector("#ejNo").onclick = () => cerrar(false);
+  m.querySelector("#ejSi").onclick = () => guard(async () => {
+    const nuevo = m.querySelector("#ejNombre").value.replace(/\s+/g, " ").trim(), t = m.querySelector("#ejTel").value.trim(), p = cloud.pool;
+    if (!nuevo) { toast("Escribe el nombre"); return; }
+    if (nuevo !== nombre) {
+      if (cloud.inscritos.some(i => i.id !== id && norm(i.nombre) === norm(nuevo))) { toast(`«${nuevo}» ya está apuntado en este evento`); return; }
+      const r = await cloud.sb.from("inscripciones").update({nombre: nuevo}).eq("id", id);
+      if (r.error) throw r.error;
+      if (cloud.sorteado) await cloud.sb.from("resultados").update({nombre: nuevo}).eq("pool_id", p.id).eq("nombre", nombre);   // también en las pistas publicadas
+      const g = recall(nombre); if (g && !recall(nuevo)) remember(nuevo, g);   // el sexo recordado pasa al nombre nuevo
+    }
+    if (t !== tel) {
+      const r = await cloud.sb.rpc("poner_telefono", {p_id: id, p_tel: t});
+      if (r.error) throw new Error(r.error.code === "PGRST202" ? "Falta ejecutar cambio_27_telefono_desde_manager.sql en Supabase" : cloudError(r.error));
+    }
+    await loadInscritos();
+    toast(nuevo !== nombre ? `✏️ ${nombre} → ${nuevo}` : "✏️ Guardado");
+    cerrar(true);
+    if (state.step === 2) renderPlayers();
+  });
+  setTimeout(() => m.querySelector("#ejNombre").focus(), 50);
+});
 window.editarTelefono = async (id, nombre) => {
   const actual = telefonoDe(id);
   const t = await pedirTexto(`📞 Teléfono de ${nombre}`, "Solo lo verán los administradores del evento. Déjalo vacío para quitarlo.", {si: "Guardar", valor: actual, tipo: "tel"});
