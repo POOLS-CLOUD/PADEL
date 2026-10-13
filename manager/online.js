@@ -250,7 +250,7 @@ function poolFormHtml(px, v, boton){
         <div class="chips" id="${px}Clubs" style="margin-top:6px">${clubChips()}</div></div>
       <label class="lbl">Notas (opcional, se ven en la web)<textarea id="${px}Notas" style="min-height:60px" placeholder="Ej.: PÁDEL INDOOR · Traed bolas">${esc(v.notas || "")}</textarea></label>
       <div class="lbl">Asignación de pistas (se ve en la web)
-        <div class="modos" id="${px}Tipo" style="margin-top:4px">${Object.entries(MODOS).map(([k, m]) => `<button type="button" class="modo${(v.tipo_sorteo || state.modo || "mixto") === k ? " on" : ""}" data-tipo="${k}">${m.t}<small>${m.d}</small></button>`).join("")}</div></div>
+        <div class="modos" id="${px}Tipo" style="margin-top:4px">${Object.entries(MODOS).map(([k, m]) => `<button type="button" class="modo${(v.tipo_sorteo || state.modo || "mixto") === k ? " on" : ""}" data-tipo="${k}">${modoHtml(k)}<small>${m.d}</small></button>`).join("")}</div></div>
       <label style="display:flex;gap:10px;align-items:center;font-weight:600;font-size:15px;padding:4px 0">
         <input type="checkbox" id="${px}Fijas" ${v.parejas_fijas ? "checked" : ""} style="width:22px;height:22px;margin:0">
         Parejas fijas <span class="help" style="font-weight:400">(se apuntan por parejas y solo se asignan las pistas)</span></label>
@@ -879,7 +879,7 @@ function renderLista(box){
       <div class="info" data-open="${x.id}">
         <div class="tt">${esc(x.titulo)}</div>
         <div class="help" style="margin:2px 0 0">📅 ${fechaCorta(x.fecha)}${x.horario ? " · " + esc(x.horario) : ""} · ${n}/${x.max_jugadores} apuntados</div>
-        <div style="margin-top:6px"><span class="pill ${est[1]}">${est[0]}</span>${x.parejas_fijas ? ` <span class="pill">👫 Parejas fijas</span>` : x.tipo_sorteo && MODOS[x.tipo_sorteo] ? ` <span class="pill">${MODOS[x.tipo_sorteo].t}</span>` : ""}</div>
+        <div style="margin-top:6px"><span class="pill ${est[1]}">${est[0]}</span>${x.parejas_fijas ? ` <span class="pill">👫 Parejas fijas</span>` : x.tipo_sorteo && MODOS[x.tipo_sorteo] ? ` <span class="pill">${modoHtml(x.tipo_sorteo)}</span>` : ""}</div>
       </div>
       <div style="display:flex;flex-direction:column;gap:6px;flex:none">
         <button class="btn small" data-compartir="${x.id}" title="Compartir enlace" style="font-size:18px;padding:10px 12px">📤</button>

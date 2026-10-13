@@ -60,6 +60,7 @@ h1{font:800 clamp(26px,7.5vw,34px)/1.1 var(--fd);letter-spacing:-.02em;margin:6p
 .poolcard .nt{font-size:13.5px;color:var(--ink);margin-top:4px;white-space:pre-line;overflow-wrap:anywhere}
 .stats{display:flex;flex-wrap:wrap;gap:6px;margin-top:14px}
 .pill{display:inline-flex;align-items:center;border-radius:999px;padding:4px 10px;font-size:12.5px;font-weight:600;background:rgba(255,255,255,.13);font-variant-numeric:tabular-nums;white-space:nowrap}
+.sx{display:inline-block;width:1.05em;height:1.05em;vertical-align:-.17em;flex:none}.sxs{display:inline-flex;gap:1px;margin-right:5px;vertical-align:middle}
 .pill.ok{background:var(--ok);color:#fff} .pill.warn{background:var(--warn);color:#fff} .pill.done{background:#7FB2F0;color:#0B1A2E}
 .langbtn{position:absolute;top:calc(12px + var(--sat));right:max(16px,var(--sar));z-index:3;border:1px solid rgba(255,255,255,.4);background:rgba(11,21,36,.45);
   color:var(--head-ink);border-radius:999px;padding:6px 12px;min-height:34px;font:700 13px var(--fb);letter-spacing:.06em;cursor:pointer;backdrop-filter:blur(4px)}
@@ -268,7 +269,7 @@ const TXT = {
     open: "Inscripción abierta", closed: "Inscripción cerrada", drawn: "Pistas asignadas", drawDone: "🎾 Pistas asignadas", reservesOnly: "Solo reservas",
     reservesOnlyNote: "Las pistas ya están asignadas: la lista está cerrada, pero aún puedes apuntarte como reserva dejando tu nombre y teléfono de contacto para ser avisado (el teléfono solo será visible para el administrador).",
     phoneLabel: "Teléfono de contacto", phoneOpt: "(opcional, pero recomendable)", phoneReq: "(obligatorio para reservas)", phonePh: "Ej.: 600 123 456", phoneNote: "🔒 Tu teléfono solo será visible para el administrador, para avisarte si hay cambios o queda una plaza libre.", errPhone: "Escribe tu teléfono de contacto.", errPhoneBad: "Ese teléfono no parece correcto.",
-    tipos: {mixto: "👫 Parejas mixtas", chicos: "👬 Parejas masculinas", chicas: "👭 Parejas femeninas", aleatorio: "🎲 Parejas aleatorias", fijas: "🤝 Parejas fijas"},
+    tipos: {mixto: "Parejas mixtas", chicos: "Parejas masculinas", chicas: "Parejas femeninas", aleatorio: "🎲 Parejas aleatorias", fijas: "🤝 Parejas fijas"},
     courts: n => `🎾 ${n} pista${n === 1 ? "" : "s"}`, players: (a, b) => `${a} / ${b} jugadores`, freeSpots: n => `🟢 ${n} plaza${n === 1 ? "" : "s"} libre${n === 1 ? "" : "s"}`,
     full: "🟢 Completa", poolFull: "🟢 Completa", inReserve: n => `${n} en reservas`,
     padel: "🎾 Pádel", tenis: "🎾 Tenis",
@@ -317,7 +318,7 @@ const TXT = {
     open: "Registration open", closed: "Registration closed", drawn: "Courts assigned", drawDone: "🎾 Courts assigned", reservesOnly: "Waiting list only",
     reservesOnlyNote: "The courts have been assigned: the list is closed, but you can still join the waiting list by leaving your name and a contact phone number so we can let you know (the phone number will only be visible to the administrator).",
     phoneLabel: "Contact phone", phoneOpt: "(optional, but recommended)", phoneReq: "(required for the waiting list)", phonePh: "E.g. 600 123 456", phoneNote: "🔒 Your phone number will only be visible to the administrator, to let you know about changes or if a place becomes free.", errPhone: "Type your contact phone number.", errPhoneBad: "That phone number doesn't look right.",
-    tipos: {mixto: "👫 Mixed pairs", chicos: "👬 Men's pairs", chicas: "👭 Women's pairs", aleatorio: "🎲 Random pairs", fijas: "🤝 Fixed pairs"},
+    tipos: {mixto: "Mixed pairs", chicos: "Men's pairs", chicas: "Women's pairs", aleatorio: "🎲 Random pairs", fijas: "🤝 Fixed pairs"},
     courts: n => `🎾 ${n} court${n === 1 ? "" : "s"}`, players: (a, b) => `${a} / ${b} players`, freeSpots: n => `🟢 ${n} free place${n === 1 ? "" : "s"}`,
     full: "🟢 Full", poolFull: "🟢 Full", inReserve: n => `${n} on the waiting list`,
     padel: "🎾 Padel", tenis: "🎾 Tennis",
@@ -561,7 +562,7 @@ async function vistaListado(){
       p.club ? h("div", {class: "m"}, "📍 " + p.club) : null,
       p.notas ? h("div", {class: "nt"}, p.notas) : null,
       h("div", {class: "row"}, h("span", {class: "tag " + est[1]}, est[0]), p.sorteado ? h("span", {class: "tag drawn"}, T().drawDone) : null,
-        tipoSorteo(p) ? h("span", {class: "tag"}, tipoSorteo(p)) : null,
+        tipoSorteo(p) ? h("span", {class: "tag"}, tipoNodo(p), tipoSorteo(p)) : null,
         h("span", {class: "tag"}, T().courts(Math.floor(p.max_jugadores / 4))), h("span", {class: "tag"}, T().players(lleno, p.max_jugadores)),
         lleno >= p.max_jugadores && p.estado === "abierta" ? h("span", {class: "tag open"}, T().full) : null,
         lleno < p.max_jugadores && p.estado === "abierta" ? h("span", {class: "tag open"}, T().freeSpots(p.max_jugadores - lleno)) : null, res ? h("span", {class: "tag"}, T().inReserve(res)) : null),
@@ -591,6 +592,11 @@ function vistaBorrada(){
   $("main").replaceChildren(h("div", {class: "note"}, T().deletedNote, h("a", {href: DEMO ? "./?demo" : "./"}, T().seeAvailable)));
 }
 // tipo de sorteo elegido por el organizador (parejas fijas manda sobre el resto)
+// iconos ♂ ♀ (svg): se ven igual de claros en todos los móviles
+const SX = {H: '<svg class="sx" viewBox="0 0 24 24" aria-label="chico"><circle cx="9.5" cy="14.5" r="6" fill="none" stroke="#1f6fe0" stroke-width="2.8"/><path d="M14 10 20.5 3.5M14.5 3.5h6v6" fill="none" stroke="#1f6fe0" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/></svg>', M: '<svg class="sx" viewBox="0 0 24 24" aria-label="chica"><circle cx="12" cy="9" r="6" fill="none" stroke="#e0337a" stroke-width="2.8"/><path d="M12 15v7.5M8.5 19h7" fill="none" stroke="#e0337a" stroke-width="2.8" stroke-linecap="round"/></svg>'};
+const sxNodo = (...gs) => { const s = document.createElement("span"); s.className = "sxs"; s.innerHTML = gs.map(g => SX[g]).join(""); return s; };
+const tipoIco = p => p.parejas_fijas && !p.tipo_sorteo ? null : ({mixto: ["H", "M"], chicos: ["H", "H"], chicas: ["M", "M"]})[p.tipo_sorteo || (p.parejas_fijas ? "mixto" : "")] || null;
+const tipoNodo = p => { const ic = p.parejas_fijas ? null : tipoIco(p); return ic ? sxNodo(...ic) : null; };
 const tipoSorteo = p => T().tipos[p.parejas_fijas ? "fijas" : p.tipo_sorteo] || null;
 let slotElegido = null;   // hueco elegido al apuntarse en un evento de parejas fijas
 function vistaPool(){
@@ -607,7 +613,7 @@ function vistaPool(){
   $("notas").hidden = !p.notas; $("notas").textContent = p.notas || "";
   const ep = estadoPublico(p);
   const est = ep === "cerrada" ? [T().closed, "warn"] : ep === "reservas" ? [T().reservesOnly, "warn"] : lista.length >= max ? [T().poolFull, "ok"] : [T().open, ""];
-  $("stats").replaceChildren(...[tipoSorteo(p) ? h("span", {class: "pill"}, tipoSorteo(p)) : null, h("span", {class: "pill"}, T().players(lista.length, max)),
+  $("stats").replaceChildren(...[tipoSorteo(p) ? h("span", {class: "pill"}, tipoNodo(p), tipoSorteo(p)) : null, h("span", {class: "pill"}, T().players(lista.length, max)),
     reservas.length ? h("span", {class: "pill"}, T().inReserve(reservas.length)) : null, h("span", {class: "pill " + est[1]}, est[0]),
     D.resultados.length ? h("span", {class: "pill done"}, T().drawDone) : null].filter(Boolean));
   $("bar").hidden = false; $("barFill").style.width = Math.min(100, lista.length / max * 100) + "%";
@@ -648,12 +654,12 @@ function vistaPool(){
     const porPos = new Map(D.inscritos.filter(i => i.posicion != null).map(i => [i.posicion, i]));
     const puede = (p.estado === "abierta" || soloReservas) && desdeAqui < MAX_DISP;
     const tipoP = p.tipo_sorteo || "mixto";
-    const ico = pos => tipoP === "chicos" ? "👨 " : tipoP === "chicas" ? "👩 " : tipoP === "mixto" ? (pos % 2 ? "👩 " : "👨 ") : "";
+    const ico = pos => tipoP === "chicos" ? sxNodo("H") : tipoP === "chicas" ? sxNodo("M") : tipoP === "mixto" ? sxNodo(pos % 2 ? "M" : "H") : null;
     const slot = pos => {
       const i = porPos.get(pos);
-      if (i) return h("div", {class: "slot"}, h("span", {class: "nm"}, ico(pos) + i.nombre),
+      if (i) return h("div", {class: "slot"}, h("span", {class: "nm"}, ico(pos), i.nombre),
         mine[i.id] ? h("span", {class: "acts"}, h("span", {class: "me"}, T().you), puedeBorrarA(i) ? h("button", {class: "del", type: "button", onclick: () => quitar(i)}, T().removeMe) : null) : null);
-      return puede && (!soloReservas || pos >= max) ? h("button", {class: "slotbtn", type: "button", onclick: () => abrirHueco(pos)}, ico(pos) + T().joinHere) : h("div", {class: "slot libre"}, ico(pos) + T().free);
+      return puede && (!soloReservas || pos >= max) ? h("button", {class: "slotbtn", type: "button", onclick: () => abrirHueco(pos)}, ico(pos), T().joinHere) : h("div", {class: "slot libre"}, ico(pos), T().free);
     };
     const filas = (desde, hasta, pref) => { const r = []; for (let k = desde; k < hasta; k += 2) r.push(h("div", {class: "pairrow"}, h("span", {class: "pl"}, pref + (Math.floor((k - desde) / 2) + 1)), slot(k), slot(k + 1))); return r; };
     main.append(h("section", {}, h("h2", {}, T().pairsTitle, h("small", {}, T().pairsSmall)),

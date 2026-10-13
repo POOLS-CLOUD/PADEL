@@ -101,6 +101,7 @@ button{font:inherit;cursor:pointer}
 .x{border:0;background:transparent;color:var(--muted);font-size:22px;line-height:1;padding:4px 6px}
 .stats{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 0}
 .pill{border-radius:999px;padding:4px 10px;font-size:13px;font-weight:600;background:var(--accent-soft);color:var(--accent)}
+.sx{display:inline-block;width:1.05em;height:1.05em;vertical-align:-.17em;flex:none}.sxs{display:inline-flex;gap:1px;margin-right:5px;vertical-align:middle}
 .pill.h{background:var(--man-soft);color:var(--man)} .pill.m{background:var(--woman-soft);color:var(--woman)}
 .note{border-radius:10px;padding:10px 12px;font-size:14px;margin-top:10px}
 .note.warn{background:var(--warn-soft);color:var(--warn)} .note.err{background:var(--err-soft);color:var(--err)} .note.ok{background:var(--accent-soft);color:var(--accent)}
@@ -142,7 +143,7 @@ input[type=email],input[type=password],input[type=date],input[type=number]{width
 .toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:9px 16px;border-radius:999px;font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:9}
 .toast.on{opacity:1}
 </style>
-<script>window.APP_VERSION = "3.7";</script></head>
+<script>window.APP_VERSION = "3.8";</script></head>
 <body>
 <header>
   <div class="toprow"><h1>Sport Events<small style="display:block;font-size:.55em;font-weight:600;opacity:.8;letter-spacing:.04em">MANAGER <span id="appVer" style="opacity:.8"></span></small></h1><button class="langbtn" id="bLang" type="button" aria-label="Idioma / Language"></button><button class="cloudbtn" id="cloudTab" title="Inicio" aria-label="Inicio">🏠</button><button class="reset" id="resetAll" title="Reset" aria-label="Reset">⟲</button></div>
@@ -639,12 +640,14 @@ $("nextTuesday").onclick = () => {
 };
 
 /* ---------- PASO 4: sorteo ---------- */
+const SX_H = '<svg class="sx" viewBox="0 0 24 24" aria-label="chico"><circle cx="9.5" cy="14.5" r="6" fill="none" stroke="#1f6fe0" stroke-width="2.8"/><path d="M14 10 20.5 3.5M14.5 3.5h6v6" fill="none" stroke="#1f6fe0" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/></svg>', SX_M = '<svg class="sx" viewBox="0 0 24 24" aria-label="chica"><circle cx="12" cy="9" r="6" fill="none" stroke="#e0337a" stroke-width="2.8"/><path d="M12 15v7.5M8.5 19h7" fill="none" stroke="#e0337a" stroke-width="2.8" stroke-linecap="round"/></svg>';
 const MODOS = {
-  mixto:     {t: "👫 Mixto",     d: "chico + chica"},
-  chicos:    {t: "👬 Masculino", d: "dos chicos"},
-  chicas:    {t: "👭 Femenino",  d: "dos chicas"},
-  aleatorio: {t: "🎲 Aleatorio", d: "sin mirar el sexo"},
+  mixto:     {t: "Mixto",     d: "chico + chica",    ic: SX_H + SX_M},
+  chicos:    {t: "Masculino", d: "dos chicos",       ic: SX_H + SX_H},
+  chicas:    {t: "Femenino",  d: "dos chicas",       ic: SX_M + SX_M},
+  aleatorio: {t: "Aleatorio", d: "sin mirar el sexo", ic: "🎲"},
 };
+const modoHtml = k => MODOS[k] ? `<span class="sxs">${MODOS[k].ic}</span>${MODOS[k].t}` : "";
 // Aviso sobre cómo saldrán las parejas con los jugadores que entran en el sorteo
 function modoAviso(H, M){
   const m = state.modo;
@@ -661,7 +664,7 @@ function renderModos(){
     $("modoNote").innerHTML = `<div class="note ok">👫 Evento de <b>parejas fijas</b>: se respetan las parejas tal como se apuntaron y solo se asignan las pistas.</div>`;
     return;
   }
-  $("modos").innerHTML = Object.entries(MODOS).map(([k, m]) => `<button class="modo${state.modo === k ? " on" : ""}" data-modo="${k}">${m.t}<small>${m.d}</small></button>`).join("");
+  $("modos").innerHTML = Object.entries(MODOS).map(([k, m]) => `<button class="modo${state.modo === k ? " on" : ""}" data-modo="${k}">${modoHtml(k)}<small>${m.d}</small></button>`).join("");
   $("modos").querySelectorAll("[data-modo]").forEach(b => b.onclick = () => { state.modo = b.dataset.modo; save(); renderModos(); if (window.guardarTipoCloud) guardarTipoCloud(state.modo); });
   const {dentro} = drawPlayers(), H = dentro.filter(p => p.g === "H").length;
   $("modoNote").innerHTML = dentro.length ? `<div style="margin-top:10px">${modoAviso(H, dentro.length - H)}</div>` : "";
