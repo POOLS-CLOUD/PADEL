@@ -147,7 +147,7 @@ input[type=email],input[type=password],input[type=date],input[type=number]{width
 .toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:9px 16px;border-radius:999px;font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:9}
 .toast.on{opacity:1}
 </style>
-<script>window.APP_VERSION = "3.11";</script></head>
+<script>window.APP_VERSION = "3.12";</script></head>
 <body>
 <header>
   <div class="toprow"><h1>Sport Events<small style="display:block;font-size:.55em;font-weight:600;opacity:.8;letter-spacing:.04em">MANAGER <span id="appVer" style="opacity:.8"></span></small></h1><button class="langbtn" id="bLang" type="button" aria-label="Idioma / Language"></button><button class="cloudbtn" id="cloudTab" title="Inicio" aria-label="Inicio">🏠</button><button class="reset" id="resetAll" title="Reset" aria-label="Reset">⟲</button></div>
@@ -358,7 +358,7 @@ let state = {
   memory: store.get("memory", {}),      // norm(nombre) -> {name, g:'H'|'M'}  (sexo recordado de cada jugador)
   modo: store.get("modo", "mixto"),
   parejasFijas: store.get("parejasFijas", false),
-  pistasAzar: store.get("pistasAzar", false),           // parejas fijas: pistas 100 % al azar (sin evitar repetir pista)       // mixto | chicos | chicas | aleatorio
+  pistasAzar: store.get("pistasAzar", false),           // parejas fijas: pistas 100 % al azar (si no, por orden de inscripción)       // mixto | chicos | chicas | aleatorio
   header: refreshHeaderDate(store.get("header", null) ?? defaultHeader()),
 };
 // migración del formato antiguo (norm -> 'H'|'M')
@@ -669,7 +669,7 @@ function renderModos(){
     $("modoNote").innerHTML = `<div class="note ok">👫 Evento de <b>parejas fijas</b>: se respetan las parejas tal como se apuntaron y solo se asignan las pistas.</div>
       <label style="display:flex;gap:10px;align-items:flex-start;margin-top:10px;font-weight:600;cursor:pointer">
         <input type="checkbox" id="pistasAzar" ${state.pistasAzar ? "checked" : ""} style="width:22px;height:22px;margin:2px 0 0;flex:none">
-        <span>🔐 Asignación de pistas 100 % aleatoria (criptográfica)<br><small class="help" style="font-weight:400">Cada pareja va a una pista totalmente al azar, sin intentar evitar que repita la pista de la semana pasada.</small></span></label>`;
+        <span>🔐 Asignación de pistas 100 % aleatoria (criptográfica)<br><small class="help" style="font-weight:400">Sin marcar: por orden de inscripción (parejas 1 y 2 en la pista 1, 3 y 4 en la pista 2…). Marcada: se barajan las parejas y las pistas totalmente al azar.</small></span></label>`;
     $("pistasAzar").onchange = () => { state.pistasAzar = $("pistasAzar").checked; save(); };
     return;
   }
@@ -811,17 +811,12 @@ function drawFixed(){
   const parejas = completas.slice(0, n).map(k => grupos.get(k).slice().sort((a, b) => (a.num || 0) - (b.num || 0)).map(p => ({id: id++, name: p.name, g: p.g, key: norm(p.name), par: k, num: p.num})));
   const fuera = completas.slice(n).concat(sueltos).flatMap(k => grupos.get(k).map(p => p.name));
   const rep = orden => orden.reduce((t, pr, k) => t + pr.filter(p => lastCourt.get(p.key) === (k >> 1) + 1).length, 0);
-  // muchos órdenes al azar; entre los que menos repiten pista de la semana pasada, uno al azar
-  let mejor = Infinity, opciones = [];
-  if (state.pistasAzar) { const o = shuffle(parejas); mejor = rep(o); opciones = [o]; }   // 100 % al azar (criptográfico)
-  else for (let r = 0; r < 600; r++) {
-    const orden = shuffle(parejas), s = rep(orden);
-    if (s < mejor) { mejor = s; opciones = [orden]; } else if (s === mejor && opciones.length < 60) opciones.push(orden);
-  }
-  const elegido = opciones.length ? opciones[randInt(opciones.length)] : [];
+  // por orden de inscripción (pareja 1 y 2 en la pista 1, 3 y 4 en la 2…) o, si se marca, todo al azar (criptográfico)
+  const elegido = state.pistasAzar ? shuffle(parejas) : parejas.slice();
+  const mejor = rep(elegido);
   const courts = [];
   for (let k = 0; k < elegido.length; k += 2) courts.push([elegido[k], elegido[k + 1]]);   // sin cambiar el orden dentro de cada pareja
-  return {courts, fixed: true, repCourt: mejor === Infinity ? 0 : mejor, ctx: {players: parejas.flat(), fuera, lastCourt, lastPairs: new Set()}};
+  return {courts, fixed: true, repCourt: mejor, ctx: {players: parejas.flat(), fuera, lastCourt, lastPairs: new Set()}};
 }
 function verifyFixed(res){
   // seguridad: cada pareja de cada pista tiene que ser exactamente una de las parejas apuntadas
@@ -838,9 +833,9 @@ function verifyFixed(res){
   const checks = [
     [intactas, intactas ? "👫 Parejas fijas: se mantienen tal como se apuntaron" : "⚠️ ERROR: alguna pareja no coincide con la apuntada. No publiques este resultado"],
     ...(malas.length ? [[false, `Parejas que no cumplen ${MODOS[modo].t} (${MODOS[modo].d}): ${malas.join(", ")}`]] : []),
-    [true, state.pistasAzar ? "🔐 Pistas asignadas 100 % al azar (criptográfico), sin evitar repetir pista" : "Pistas asignadas al azar, evitando repetir pista"],
+    [true, state.pistasAzar ? "🔐 Pistas asignadas 100 % al azar (criptográfico)" : "Pistas por orden de inscripción: parejas 1 y 2 en la pista 1, 3 y 4 en la pista 2…"],
     [res.courts.flat().every(pr => (pr[0].num ?? 0) <= (pr[1].num ?? 1)), "Cada pareja en su orden: primero quien se apuntó a la izquierda"],
-    [!res.repCourt, res.repCourt ? `Jugadores que repiten pista (inevitable): ${res.repCourt}` : "Ningún jugador repite pista de la semana pasada"],
+    [true, res.repCourt ? `Jugadores que repiten la pista de la semana pasada: ${res.repCourt}` : "Ningún jugador repite pista de la semana pasada"],
     ...(res.ctx.fuera.length ? [[true, `Solo pistas completas: sin pista ${res.ctx.fuera.join(", ")}`]] : []),
   ];
   return {checks, exc: []};
