@@ -382,22 +382,26 @@ async function apuntarFijos(pool, nombres, numeros = []){
   const t0 = Date.now();   // horas consecutivas para conservar el orden de la lista
   const ocupados = new Set(cloud.inscritos.map(i => i.posicion).filter(x => x != null));
   if (pool.parejas_fijas) {
-    // primero los que piden un hueco concreto (si está libre); después, el resto en los siguientes huecos libres
-    const pend = new Map(), rechazados = [];
-    nuevos.forEach(x => {
-      const k = x.num != null ? x.num - 1 : -1;
-      if (k < 0 || k >= cap || ocupados.has(k)) return;
-      const mal = parejaNoValida(pool, x.n, k, pend);
-      if (mal) { x.rechazo = mal; return; }
-      x.pos = k; ocupados.add(k); pend.set(k, x.n);
+    // primero los que piden un hueco concreto (si está libre); después, el resto en orden en los siguientes huecos libres
+    const pend = new Map();
+    nuevos.forEach(x => { const k = x.num != null ? x.num - 1 : -1; if (k >= 0 && k < cap && !ocupados.has(k)) { x.pos = k; ocupados.add(k); pend.set(k, x.n); } });
+    let k = 0;
+    nuevos.forEach(x => { if (x.pos != null) return; while (k < cap && ocupados.has(k)) k++; if (k < cap) { x.pos = k; ocupados.add(k); pend.set(k, x.n); } });
+    if ((pool.tipo_sorteo || "mixto") === "mixto") nuevos.forEach(a => {
+      if (a.pos == null || a.pos % 2) return;
+      const b = nuevos.find(x => x.pos === a.pos + 1);
+      if (b && recall(a.n) === "M" && recall(b.n) === "H") { [a.pos, b.pos] = [b.pos, a.pos]; pend.set(a.pos, a.n); pend.set(b.pos, b.n); }
     });
+    // ¿alguna pareja no encaja con el tipo de evento? Se pregunta (sin mover a nadie)
+    const vistas = new Set(), malas = [];
     nuevos.forEach(x => {
-      if (x.pos != null || x.rechazo) return;
-      for (let k = 0; k < cap; k++) if (!ocupados.has(k) && !parejaNoValida(pool, x.n, k, pend)) { x.pos = k; ocupados.add(k); pend.set(k, x.n); return; }
-      x.rechazo = parejaNoValida(pool, x.n, [...Array(cap).keys()].find(k => !ocupados.has(k)) ?? 0, pend) || `${x.n}: no queda hueco libre`;
+      if (x.pos == null || vistas.has(x.pos >> 1)) return;
+      const mal = parejaNoValida(pool, x.n, x.pos, pend);
+      if (mal) { vistas.add(x.pos >> 1); malas.push(`P${(x.pos >> 1) + 1}: ${mal}`); }
     });
-    nuevos.forEach(x => { if (x.rechazo) rechazados.push(x.rechazo); });
-    if (rechazados.length) setTimeout(() => avisar(`⚠️ No se ha podido apuntar a ${rechazados.length === 1 ? "este jugador" : "estos jugadores"}:\n\n• ${rechazados.join("\n• ")}`), 300);
+    if (malas.length && !await ask(`⚠️ Según el sexo que recuerda la app, ${malas.length === 1 ? "esta pareja no encaja" : "estas parejas no encajan"} con el tipo de evento:\n\n• ${malas.join("\n• ")}\n\n¿Apuntarlos igualmente en este orden? (Si el sexo está mal, corrígelo después en «Jugadores» con H / M.)`, "Sí, apuntar en este orden", null, "Cancelar")) return 0;
+    const sinHueco = nuevos.filter(x => x.pos == null).map(x => x.n);
+    if (sinHueco.length) setTimeout(() => avisar(`⚠️ No queda hueco libre para: ${sinHueco.join(", ")}`), 300);
   }
   const filas = nuevos.filter(x => !pool.parejas_fijas || x.pos != null)
     .map((x, i) => ({pool_id: pool.id, nombre: x.n, created_at: new Date(t0 + i * 10).toISOString(), ...(pool.parejas_fijas ? {posicion: x.pos} : pool.estado === "sorteada" ? {reserva: true} : {})}));
@@ -443,10 +447,16 @@ window.reordenarParejas = async jugadores => {
     else if (tipo === "chicas" && g.includes("H")) malas.push(`P${k}: ${l.map(j => j.name).join(" + ")} (el evento es femenino)`);
     else if (tipo === "mixto" && l.length === 2 && g[0] && g[0] === g[1]) malas.push(`P${k}: ${l.map(j => j.name).join(" + ")} (${g[0] === "H" ? "dos chicos" : "dos chicas"} en un evento mixto)`);
   });
-  if (malas.length) { await avisar(`⚠️ Estas parejas no encajan con el tipo de evento:\n\n• ${malas.join("\n• ")}`); return; }
+  if (malas.length && !await ask(`⚠️ Según el sexo que recuerda la app, estas parejas no encajan con el tipo de evento:\n\n• ${malas.join("\n• ")}\n\n¿Reordenar igualmente?`, "Sí, reordenar", null, "Cancelar")) return;
   // cada pareja en sus dos huecos (P1 → 1 y 2, P2 → 3 y 4…), en el orden en que estaban
   const ids = [], pos = [];
-  grupos.forEach((l, k) => l.sort((a, b) => a.num - b.num).forEach((j, n) => { ids.push(j.id); pos.push(2 * (k - 1) + n); }));
+  const rango = j => tipo === "mixto" ? (recall(j.name) === "H" ? 0 : recall(j.name) === "M" ? 2 : 1) : 0;
+  grupos.forEach((l, k) => {
+    l.sort((a, b) => rango(a) - rango(b) || a.num - b.num);
+    // en mixto, una chica sola va al hueco de la derecha (♀)
+    const desde = tipo === "mixto" && l.length === 1 && recall(l[0].name) === "M" ? 1 : 0;
+    l.forEach((j, n) => { ids.push(j.id); pos.push(2 * (k - 1) + desde + n); });
+  });
   if (pos.some(x => x >= p.max_jugadores)) { toast("No caben tantas parejas en la lista de este evento"); return; }
   await guard(async () => {
     const r = await cloud.sb.rpc("reordenar_parejas", {p_pool: p.id, p_ids: ids, p_pos: pos});
@@ -464,10 +474,8 @@ function parejaNoValida(pool, nombre, k, pendientes){
   if (!["mixto", "chicos", "chicas"].includes(tipo) || (g !== "H" && g !== "M")) return null;
   if (tipo === "chicos" && g === "M") return `${nombre} es chica y la asignación es masculina (dos chicos)`;
   if (tipo === "chicas" && g === "H") return `${nombre} es chico y la asignación es femenina (dos chicas)`;
-  if (tipo === "mixto") {
-    const comp = (pendientes && pendientes.get(k ^ 1)) || (cloud.inscritos.find(i => i.posicion === (k ^ 1)) || {}).nombre;
-    if (comp && recall(comp) === g) return `${nombre} y ${comp} serían ${g === "H" ? "dos chicos" : "dos chicas"}, y las parejas son mixtas`;
-  }
+  // mixto: el hueco izquierdo (♂) es de chico y el derecho (♀) de chica
+  if (tipo === "mixto" && (k % 2 === 0) !== (g === "H")) return `${nombre} es ${g === "H" ? "chico" : "chica"} y el hueco ${k + 1} es de ${k % 2 === 0 ? "chico (♂)" : "chica (♀)"}`;
   return null;
 }
 
@@ -489,7 +497,7 @@ async function apuntarEnPuesto(pool, nombre, num){
     if (k < 0 || k >= cap) return apuntarFijos(pool, [nombre]);
     await ofrecerMixto(pool, [nombre]);
     const mal = parejaNoValida(pool, nombre, k);
-    if (mal) { await avisar(`⚠️ No se puede poner a ${nombre} en el hueco ${num}:\n\n${mal}.`); return 0; }
+    if (mal && !await ask(`⚠️ Según el sexo que recuerda la app: ${mal}.\n\n¿Poner a ${nombre} en el hueco ${num} igualmente?`, "Sí, ponerlo", null, "Cancelar")) return 0;
     const ocupa = cloud.inscritos.find(i => i.posicion === k);
     if (!ocupa) return insertar({posicion: k, created_at: new Date().toISOString()});
     const sitio = k < pool.max_jugadores ? `pareja ${Math.floor(k / 2) + 1}` : `pareja de reserva ${Math.floor((k - pool.max_jugadores) / 2) + 1}`;
@@ -517,7 +525,7 @@ function cloudError(e){
   const m = String(e && (e.message || e.error_description) || e);
   if (/Invalid login credentials/i.test(m)) return "Email o contraseña incorrectos.";
   if (/HUECO_OCUPADO|HUECO_REPETIDO/.test(m)) return "Alguno de esos huecos ya está ocupado. Recarga y vuelve a intentarlo.";
-  if (/PAREJA_MIXTA/.test(m)) return "En una pareja mixta no puede haber dos chicos ni dos chicas.";
+  if (/PAREJA_MIXTA/.test(m)) return "Evento mixto: el hueco ♂ (izquierda) es de chico y el ♀ (derecha) de chica.";
   if (/PAREJA_SOLO_CHICOS/.test(m)) return "La asignación es masculina: solo pueden apuntarse chicos.";
   if (/PAREJA_SOLO_CHICAS/.test(m)) return "La asignación es femenina: solo pueden apuntarse chicas.";
   if (/EVENTO_DUPLICADO|pools_unico/i.test(m)) return "Ya hay un evento con ese nombre, ese día y a esa hora. Cambia la hora o el nombre.";

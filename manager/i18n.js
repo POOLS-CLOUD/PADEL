@@ -129,7 +129,7 @@
     "🔒 Cerrar también reservas": "🔒 Close the waiting list too",
     "↩️ Deshacer asignación": "↩️ Undo court assignment", "Deshacer": "Undo", "↩️ Asignación deshecha": "↩️ Court assignment undone",
     "Asignando…": "Assigning…",
-    "📞 Llamar": "📞 Call", "🔀 Reordenar parejas": "🔀 Reorder pairs", "🔀 Parejas reordenadas": "🔀 Pairs reordered",
+    "📞 Llamar": "📞 Call", "Sí, apuntar en este orden": "Yes, sign them up in this order", "Sí, ponerlo": "Yes, place them", "Sí, reordenar": "Yes, reorder", "🔀 Reordenar parejas": "🔀 Reorder pairs", "🔀 Parejas reordenadas": "🔀 Pairs reordered",
     "Pulsa para guardar las parejas nuevas": "Tap to save the new pairs", "Cambia la P de un jugador para moverlo de pareja": "Change a player's P to move them to another pair", "Sí, cambiar a mixto": "Yes, switch to mixed", "👫 Evento cambiado a mixto": "👫 Event switched to mixed", "Parejas de reserva": "Reserve pairs", "🔐 Asignación de pistas 100 % aleatoria (criptográfica)": "🔐 100% random court assignment (cryptographic)",
     "Sin marcar: por orden de inscripción (parejas 1 y 2 en la pista 1, 3 y 4 en la pista 2…). Marcada: se barajan las parejas y las pistas totalmente al azar.": "Unticked: by sign-up order (pairs 1 and 2 on court 1, 3 and 4 on court 2…). Ticked: pairs and courts are shuffled completely at random.",
     "🔐 Pistas asignadas 100 % al azar (criptográfico)": "🔐 Courts assigned 100% at random (cryptographic)",
