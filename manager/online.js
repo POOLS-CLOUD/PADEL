@@ -364,6 +364,7 @@ async function ponerTelefonos(pool, nombres, telefonos){
 }
 // Apunta en la pool a los nombres dados, en ese orden, saltando los que ya están
 async function apuntarFijos(pool, nombres, numeros = []){
+  await ofrecerMixto(pool, nombres);
   const ya = new Set(cloud.inscritos.map(i => norm(i.nombre)));
   const cap = pool.max_jugadores + pool.max_reservas;
   const libres = cap - cloud.inscritos.length;
@@ -400,6 +401,24 @@ async function apuntarFijos(pool, nombres, numeros = []){
 /* Parejas fijas: según la asignación de pistas, ¿se puede poner a «nombre» en el hueco k?
    Mixto: no dos chicos ni dos chicas · Masculino: solo chicos · Femenino: solo chicas.
    Solo se comprueba si la app recuerda el sexo. Devuelve el motivo o null si se puede. */
+// Evento de parejas fijas masculino o femenino y en la lista hay jugadores del otro sexo (según la agenda):
+// se pregunta si se pasa a mixto; si se acepta, se cambia en el evento (y en la web) antes de apuntarlos.
+async function ofrecerMixto(pool, nombres){
+  if (!pool.parejas_fijas || !["chicos", "chicas"].includes(pool.tipo_sorteo) || pool._sinMixto) return;
+  const otro = pool.tipo_sorteo === "chicos" ? "M" : "H";
+  const distintos = nombres.filter(n => recall(n) === otro);
+  if (!distintos.length) return;
+  const que = pool.tipo_sorteo === "chicos" ? "masculina (dos chicos)" : "femenina (dos chicas)";
+  if (!await ask(`La asignación de «${pool.titulo}» es ${que}, pero en la lista ${distintos.length === 1 ? "hay" : "hay"} ${pool.tipo_sorteo === "chicos" ? "chicas" : "chicos"}: ${distintos.join(", ")}.\n\n¿Cambiar el evento a mixto (chico + chica) para poder apuntarlos?`, "Sí, cambiar a mixto", null, "No")) {
+    pool._sinMixto = true; return;
+  }
+  const r = await cloud.sb.from("pools").update({tipo_sorteo: "mixto"}).eq("id", pool.id).select().single();
+  if (r.error) { toast("No se pudo cambiar a mixto: " + cloudError(r.error)); return; }
+  pool.tipo_sorteo = "mixto";
+  [cloud.pool, ...(cloud.pools || [])].forEach(x => { if (x && x.id === pool.id) x.tipo_sorteo = "mixto"; });
+  state.modo = "mixto"; save();
+  toast("👫 Evento cambiado a mixto");
+}
 // Aviso con un solo botón
 async function avisar(msg){ $("modalNo").classList.add("hidden"); try { await ask(msg, "Entendido"); } finally { $("modalNo").classList.remove("hidden"); } }
 function parejaNoValida(pool, nombre, k, pendientes){
@@ -431,6 +450,7 @@ async function apuntarEnPuesto(pool, nombre, num){
   if (pool.parejas_fijas) {
     const k = num - 1;
     if (k < 0 || k >= cap) return apuntarFijos(pool, [nombre]);
+    await ofrecerMixto(pool, [nombre]);
     const mal = parejaNoValida(pool, nombre, k);
     if (mal) { await avisar(`⚠️ No se puede poner a ${nombre} en el hueco ${num}:\n\n${mal}.`); return 0; }
     const ocupa = cloud.inscritos.find(i => i.posicion === k);
@@ -740,6 +760,7 @@ function wireApuntar(p){
     const {nombres, numeros, telefonos} = parseNombres($("aLista").value);
     if (!nombres.length) { toast("Escribe al menos un nombre"); return; }
     let n = 0;
+    await ofrecerMixto(p, nombres);   // una sola pregunta para toda la lista
     const sinNumero = nombres.filter((x, i) => numeros[i] == null);
     for (let i = 0; i < nombres.length; i++) if (numeros[i] != null) n += await apuntarEnPuesto(p, nombres[i], numeros[i]);
     if (sinNumero.length) n += await apuntarFijos(p, sinNumero);
