@@ -466,7 +466,8 @@ function supabaseBackend(){
           }
           return r; })(),
         sb.from("movimientos").select("tipo,nombre,created_at").eq("pool_id", pool.id).order("created_at", {ascending:false}).limit(30),
-        sb.from("resultados").select("pista,pareja,nombre").eq("pool_id", pool.id).order("pista").order("pareja"),
+        sb.from("resultados").select("pista,pareja,nombre,orden").eq("pool_id", pool.id).order("pista").order("pareja").order("orden")
+          .then(r => r.error && /orden/.test(r.error.message || "") ? sb.from("resultados").select("pista,pareja,nombre").eq("pool_id", pool.id).order("pista").order("pareja") : r),
       ]);
       let tg = null;
       try { const r = await sb.rpc("enlaces_telegram", {p_pools: [pool.id]}); tg = r.data && r.data[0] ? r.data[0].enlace : null; } catch(e) {}

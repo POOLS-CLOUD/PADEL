@@ -1284,7 +1284,7 @@ window.prepareCloudDraw = async () => {
     if (!cloud.organizer || !cloud.pool) return;
     const prev = await previousPool();
     if (!prev) { state.last = []; cloud.lastTitle = null; save(); return; }
-    const { data: rs, error } = await cloud.sb.from("resultados").select("pista,pareja,nombre").eq("pool_id", prev.id).order("pista").order("pareja");
+    const { data: rs, error } = await leerResultados(prev.id);
     if (error) throw error;
     const courts = [];
     rs.forEach(r => { const c = courts[r.pista - 1] ||= {pairs: [[], []]}; (c.pairs[r.pareja - 1] ||= []).push(r.nombre); });
@@ -1301,16 +1301,23 @@ window.renderLastInfo = async () => {
   } catch(e) { box.textContent = ""; }
 };
 
+// Pistas asignadas de un evento, con cada pareja en su orden (sin el cambio 36, como antes)
+async function leerResultados(id){
+  const r = await cloud.sb.from("resultados").select("pista,pareja,nombre,orden").eq("pool_id", id).order("pista").order("pareja").order("orden");
+  return r.error && /orden/.test(r.error.message || "") ? cloud.sb.from("resultados").select("pista,pareja,nombre").eq("pool_id", id).order("pista").order("pareja") : r;
+}
 /* ---------- publicar el sorteo en la web ---------- */
 window.onDrawn = async res => {
   const p = cloud.pool;
   if (!cloud.organizer || !p) return;
   if (!await sigoActivo()) { toast("No se ha publicado: tu usuario está abierto en otro móvil"); return; }
   const rows = [];
-  res.courts.forEach((c, ci) => c.forEach((pr, pi) => pr.forEach(pl => { if (pl && pl.name) rows.push({pool_id: p.id, pista: ci + 1, pareja: pi + 1, nombre: pl.name, sexo: pl.g || null}); })));
+  res.courts.forEach((c, ci) => c.forEach((pr, pi) => pr.forEach((pl, oi) => { if (pl && pl.name) rows.push({pool_id: p.id, pista: ci + 1, pareja: pi + 1, nombre: pl.name, sexo: pl.g || null, orden: oi}); })));
   try {
     let r = await cloud.sb.from("resultados").delete().eq("pool_id", p.id); if (r.error) throw r.error;
-    r = await cloud.sb.from("resultados").insert(rows); if (r.error) throw r.error;
+    r = await cloud.sb.from("resultados").insert(rows);
+    if (r.error && /orden/.test(r.error.message || "")) r = await cloud.sb.from("resultados").insert(rows.map(({orden, ...x}) => x));   // sin el cambio 36
+    if (r.error) throw r.error;
     cloud.sorteado = true;
     // con el sorteo hecho la inscripción se cierra: solo se pueden apuntar reservas (si estaba cerrada, sigue cerrada)
     if (p.estado === "abierta") { r = await cloud.sb.from("pools").update({estado: "sorteada"}).eq("id", p.id); if (r.error) throw r.error; }
@@ -1351,7 +1358,7 @@ window.renderCloudLast = async () => {
   const b = document.createElement("button");
   b.className = "btn saved"; b.innerHTML = `☁ Usar las pistas publicadas de ${esc(prev.titulo)}<small>Descarga las pistas y parejas desde la base de datos</small>`;
   b.onclick = async () => {
-    const { data: rs, error } = await cloud.sb.from("resultados").select("pista,pareja,nombre").eq("pool_id", prev.id).order("pista").order("pareja");
+    const { data: rs, error } = await leerResultados(prev.id);
     if (error) { toast(cloudError(error)); return; }
     const courts = [];
     rs.forEach(r => { const c = courts[r.pista - 1] ||= {pairs: [[], []]}; (c.pairs[r.pareja - 1] ||= []).push(r.nombre); });
