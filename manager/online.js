@@ -442,7 +442,7 @@ window.reordenarParejas = async jugadores => {
   if (llenas.length) { await avisar(`⚠️ Cada pareja tiene como mucho 2 jugadores:\n\n${llenas.map(([k, l]) => `• P${k}: ${l.map(j => j.name).join(", ")}`).join("\n")}\n\nCambia la P de alguno y vuelve a pulsar «Reordenar».`); return; }
   const tipo = p.tipo_sorteo || "mixto", malas = [];
   if (["mixto", "chicos", "chicas"].includes(tipo)) grupos.forEach((l, k) => {
-    const g = l.map(j => recall(j.name));
+    const g = l.map(j => j.g || recall(j.name));   // el sexo que se ve en «Jugadores»
     if (tipo === "chicos" && g.includes("M")) malas.push(`P${k}: ${l.map(j => j.name).join(" + ")} (el evento es masculino)`);
     else if (tipo === "chicas" && g.includes("H")) malas.push(`P${k}: ${l.map(j => j.name).join(" + ")} (el evento es femenino)`);
     else if (tipo === "mixto" && l.length === 2 && g[0] && g[0] === g[1]) malas.push(`P${k}: ${l.map(j => j.name).join(" + ")} (${g[0] === "H" ? "dos chicos" : "dos chicas"} en un evento mixto)`);
@@ -450,11 +450,11 @@ window.reordenarParejas = async jugadores => {
   if (malas.length && !await ask(`⚠️ Según el sexo que recuerda la app, estas parejas no encajan con el tipo de evento:\n\n• ${malas.join("\n• ")}\n\n¿Reordenar igualmente?`, "Sí, reordenar", null, "Cancelar")) return;
   // cada pareja en sus dos huecos (P1 → 1 y 2, P2 → 3 y 4…), en el orden en que estaban
   const ids = [], pos = [];
-  const rango = j => tipo === "mixto" ? (recall(j.name) === "H" ? 0 : recall(j.name) === "M" ? 2 : 1) : 0;
+  const sexoDe = j => j.g || recall(j.name), rango = j => tipo === "mixto" ? (sexoDe(j) === "H" ? 0 : sexoDe(j) === "M" ? 2 : 1) : 0;
   grupos.forEach((l, k) => {
     l.sort((a, b) => rango(a) - rango(b) || a.num - b.num);
     // en mixto, una chica sola va al hueco de la derecha (♀)
-    const desde = tipo === "mixto" && l.length === 1 && recall(l[0].name) === "M" ? 1 : 0;
+    const desde = tipo === "mixto" && l.length === 1 && sexoDe(l[0]) === "M" ? 1 : 0;
     l.forEach((j, n) => { ids.push(j.id); pos.push(2 * (k - 1) + desde + n); });
   });
   if (pos.some(x => x >= p.max_jugadores)) { toast("No caben tantas parejas en la lista de este evento"); return; }

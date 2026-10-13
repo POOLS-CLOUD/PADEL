@@ -151,7 +151,7 @@ input[type=email],input[type=password],input[type=date],input[type=number]{width
 .toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:9px 16px;border-radius:999px;font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:9}
 .toast.on{opacity:1}
 </style>
-<script>window.APP_VERSION = "3.18";</script></head>
+<script>window.APP_VERSION = "3.19";</script></head>
 <body>
 <header>
   <div class="toprow"><h1>Sport Events<small style="display:block;font-size:.55em;font-weight:600;opacity:.8;letter-spacing:.04em">MANAGER <span id="appVer" style="opacity:.8"></span></small></h1><button class="langbtn" id="bLang" type="button" aria-label="Idioma / Language"></button><button class="cloudbtn" id="cloudTab" title="Inicio" aria-label="Inicio">🏠</button><button class="reset" id="resetAll" title="Reset" aria-label="Reset">⟲</button></div>
@@ -605,13 +605,13 @@ function renderPlayers(){
   const nPar = Math.max(Math.ceil(state.players.length / 2), ...state.players.map(parDe), 1);
   // mixto: chica en un hueco ♂ (izquierda, número impar) o chico en un hueco ♀ (derecha, número par)
   const malColocados = state.parejasFijas && state.modo === "mixto"
-    ? state.players.filter(p => (p.num % 2 === 1 && recall(p.name) === "M") || (p.num % 2 === 0 && recall(p.name) === "H")) : [];
+    ? state.players.filter(p => (p.num % 2 === 1 && p.g === "M") || (p.num % 2 === 0 && p.g === "H")) : [];
   const cambios = state.players.some(p => p._par != null && p._par !== parDe(p)) || malColocados.length > 0;
-  $("pReord").innerHTML = conMenu && state.players.length ? `${malColocados.length ? `<div class="note warn" style="margin:0 0 8px">⚠️ Evento mixto: ${malColocados.map(p => `<b>${esc(p.name)}</b> (${recall(p.name) === "M" ? "♀" : "♂"}) está en el hueco ${p.num % 2 ? "♂" : "♀"} de P${parDe(p)}`).join(" · ")}. Pulsa «Reordenar parejas» para colocar al chico a la izquierda y a la chica a la derecha.</div>` : ""}
+  $("pReord").innerHTML = conMenu && state.players.length ? `${malColocados.length ? `<div class="note warn" style="margin:0 0 8px">⚠️ Evento mixto: ${malColocados.map(p => `<b>${esc(p.name)}</b> (${p.g === "M" ? "♀" : "♂"}) está en el hueco ${p.num % 2 ? "♂" : "♀"} de P${parDe(p)}`).join(" · ")}. Pulsa «Reordenar parejas» para colocar al chico a la izquierda y a la chica a la derecha.</div>` : ""}
     <div class="row" style="align-items:center;gap:8px;margin:0 0 8px">
       <button class="btn small${cambios ? " primary" : ""}" id="bReord" ${cambios ? "" : "disabled"}>🔀 Reordenar parejas</button>
       <span class="help" style="margin:0">${cambios ? "Pulsa para guardar las parejas" : "Cambia la P de un jugador para moverlo de pareja"}</span></div>` : "";
-  if ($("bReord")) $("bReord").onclick = () => reordenarParejas(state.players.map(p => ({id: p.id, name: p.name, num: p.num, par: p._par ?? parDe(p)})));
+  if ($("bReord")) $("bReord").onclick = () => reordenarParejas(state.players.map(p => ({id: p.id, name: p.name, num: p.num, g: p.g, par: p._par ?? parDe(p)})));
   state.players.forEach((p, i) => {
     const li = document.createElement("li");
     const tel = p.id && window.telefonoDe ? telefonoDe(p.id) : "";   // teléfono de contacto (privado, solo organizador)
