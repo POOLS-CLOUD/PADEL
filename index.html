@@ -65,6 +65,7 @@ h1{font:800 clamp(26px,7.5vw,34px)/1.1 var(--fd);letter-spacing:-.02em;margin:6p
   color:var(--head-ink);border-radius:999px;padding:6px 12px;min-height:34px;font:700 13px var(--fb);letter-spacing:.06em;cursor:pointer;backdrop-filter:blur(4px)}
 .langbtn span{opacity:.5;font-weight:600}
 .langbtn b{font-weight:800}
+.langbtn .flag{width:1.35em;height:.9em;vertical-align:-.1em;margin-right:3px;border-radius:2px;box-shadow:0 0 0 1px rgba(255,255,255,.35)}
 header.top .back{padding-right:70px}
 .sharerow{display:flex;flex-wrap:wrap;gap:8px}
 .sharerow .sharebtn{margin-top:14px}
@@ -360,7 +361,8 @@ const LOC = () => LANG === "en" ? "en-GB" : "es-ES";
 // Textos fijos de la página (cabecera, formulario de apuntarse…)
 function textosFijos(){
   document.documentElement.lang = LANG;
-  $("bLang").innerHTML = LANG === "es" ? "<b>🇪🇸 ES</b> <span>· 🇬🇧 EN</span>" : "<span>🇪🇸 ES ·</span> <b>🇬🇧 EN</b>";
+  const fES = '<svg class="flag" viewBox="0 0 750 500" aria-hidden="true"><rect width="750" height="500" fill="#c60b1e"/><rect y="125" width="750" height="250" fill="#ffc400"/></svg>', fGB = '<svg class="flag" viewBox="0 0 60 30" aria-hidden="true"><clipPath id="fgb"><path d="M30,15h30v15zv15h-30zh-30v-15zv-15h30z"/></clipPath><path d="M0,0v30h60v-30z" fill="#012169"/><path d="M0,0 60,30M60,0 0,30" stroke="#fff" stroke-width="6"/><path d="M0,0 60,30M60,0 0,30" clip-path="url(#fgb)" stroke="#C8102E" stroke-width="4"/><path d="M30,0v30M0,15h60" stroke="#fff" stroke-width="10"/><path d="M30,0v30M0,15h60" stroke="#C8102E" stroke-width="6"/></svg>';
+  $("bLang").innerHTML = LANG === "es" ? `<b>${fES}ES</b> <span>· ${fGB}EN</span>` : `<span>${fES}ES ·</span> <b>${fGB}EN</b>`;
   $("bLang").title = LANG === "es" ? "Switch to English" : "Cambiar a español";
   $("back").textContent = T().back; $("bShare").textContent = T().share; $("bJoin").textContent = T().join;
   $("sJoinT").firstChild.textContent = T().join + " ";

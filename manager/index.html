@@ -127,6 +127,7 @@ details summary{cursor:pointer;font-weight:600;color:var(--accent)}
 input[type=email],input[type=password],input[type=date],input[type=number]{width:100%;font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
 .langbtn{border:1px solid rgba(255,255,255,.5);background:rgba(255,255,255,.12);color:inherit;border-radius:8px;padding:5px 7px;font:600 12px system-ui;white-space:nowrap}
 .langbtn span{opacity:.55;font-weight:600}.langbtn b{font-weight:800}
+.langbtn .flag{width:1.35em;height:.9em;vertical-align:-.1em;margin-right:3px;border-radius:2px;box-shadow:0 0 0 1px rgba(255,255,255,.35)}
 .cloudbtn{border:1px solid rgba(255,255,255,.5);background:rgba(255,255,255,.15);color:inherit;border-radius:8px;padding:5px 10px;font:600 13px system-ui}
 .cloudbtn.on{background:var(--accent-ink);color:var(--accent)}
 .modos{display:grid;grid-template-columns:1fr 1fr;gap:8px}
@@ -1075,7 +1076,8 @@ go(0);
 // Botón de idioma (ES · EN): se guarda y se recarga la app en el idioma elegido
 (function(){
   const b = document.getElementById("bLang"), en = window.APP_LANG === "en";
-  b.innerHTML = en ? '<span>🇪🇸 ES</span> · <b>🇬🇧 EN</b>' : '<b>🇪🇸 ES</b> · <span>🇬🇧 EN</span>';
+  const fES = '<svg class="flag" viewBox="0 0 750 500" aria-hidden="true"><rect width="750" height="500" fill="#c60b1e"/><rect y="125" width="750" height="250" fill="#ffc400"/></svg>', fGB = '<svg class="flag" viewBox="0 0 60 30" aria-hidden="true"><clipPath id="fgb"><path d="M30,15h30v15zv15h-30zh-30v-15zv-15h30z"/></clipPath><path d="M0,0v30h60v-30z" fill="#012169"/><path d="M0,0 60,30M60,0 0,30" stroke="#fff" stroke-width="6"/><path d="M0,0 60,30M60,0 0,30" clip-path="url(#fgb)" stroke="#C8102E" stroke-width="4"/><path d="M30,0v30M0,15h60" stroke="#fff" stroke-width="10"/><path d="M30,0v30M0,15h60" stroke="#C8102E" stroke-width="6"/></svg>';
+  b.innerHTML = en ? `<span>${fES}ES</span> · <b>${fGB}EN</b>` : `<b>${fES}ES</b> · <span>${fGB}EN</span>`;
   b.onclick = () => {
     const v = JSON.stringify(en ? "es" : "en");
     try { if (window.Android && Android.setItem) Android.setItem("padel.lang", v); else localStorage.setItem("padel.lang", v); } catch (e) { }
