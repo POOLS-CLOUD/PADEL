@@ -142,14 +142,14 @@ input[type=email],input[type=password],input[type=date],input[type=number]{width
 .toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:9px 16px;border-radius:999px;font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:9}
 .toast.on{opacity:1}
 </style>
-<script>window.APP_VERSION = "3.5";</script></head>
+<script>window.APP_VERSION = "3.6";</script></head>
 <body>
 <header>
   <div class="toprow"><h1>Sport Events<small style="display:block;font-size:.55em;font-weight:600;opacity:.8;letter-spacing:.04em">MANAGER <span id="appVer" style="opacity:.8"></span></small></h1><button class="langbtn" id="bLang" type="button" aria-label="Idioma / Language"></button><button class="cloudbtn" id="cloudTab" title="Inicio" aria-label="Inicio">🏠</button><button class="reset" id="resetAll" title="Reset" aria-label="Reset">⟲</button></div>
   <div class="steps" id="steps">
     <button data-s="0">Info evento</button>
     <button data-s="2">Jugadores</button>
-    <button data-s="4">Sorteo</button>
+    <button data-s="4">Asignar pistas</button>
   </div>
 </header>
 
@@ -222,8 +222,8 @@ input[type=email],input[type=password],input[type=date],input[type=number]{width
 
   <!-- PASO 3 -->
   <section id="s3" class="hidden">
-    <h2>Cabecera del sorteo</h2>
-    <p class="help">Este texto aparecerá encima del sorteo. Puedes editarlo; se guarda para la próxima vez. La fecha del martes se actualiza sola cuando ese martes ya ha pasado.</p>
+    <h2>Cabecera de las pistas</h2>
+    <p class="help">Este texto aparecerá encima de las pistas asignadas. Puedes editarlo; se guarda para la próxima vez. La fecha del martes se actualiza sola cuando ese martes ya ha pasado.</p>
     <div class="card">
       <textarea id="headerText" style="min-height:120px;font-weight:600"></textarea>
       <div class="row wrap" style="margin-top:8px">
@@ -236,29 +236,29 @@ input[type=email],input[type=password],input[type=date],input[type=number]{width
 
   <!-- PASO 4 -->
   <section id="s4" class="hidden">
-    <h2>Sorteo</h2>
+    <h2>Asignar pistas</h2>
     <p class="help">El orden de la lista no influye: se baraja todo con aleatoriedad criptográfica antes de formar parejas y asignar pistas.</p>
     <div id="preErr"></div>
     <div class="card">
-      <div style="font-weight:700;margin-bottom:8px">Tipo de sorteo</div>
+      <div style="font-weight:700;margin-bottom:8px">Asignación de pistas</div>
       <div class="modos" id="modos"></div>
       <div id="modoNote"></div>
       <div id="lastInfo" class="help" style="margin:10px 0 0"></div>
     </div>
     <div id="cloudSorteo"></div>
-    <button class="btn primary" id="doDraw" style="width:100%;padding:14px;font-size:17px">🎲 Realizar sorteo</button>
+    <button class="btn primary" id="doDraw" style="width:100%;padding:14px;font-size:17px">🎾 Asignar pistas</button>
 
     <div id="resultWrap" class="hidden" style="margin-top:14px">
       <div class="card"><div class="result" id="result"></div></div>
       <div class="row wrap">
         <button class="btn" id="copyRes">📋 Copiar</button>
         <button class="btn" id="shareRes">📤 Compartir</button>
-        <button class="btn ghost" id="redraw">🎲 Repetir sorteo</button>
+        <button class="btn ghost" id="redraw">🎾 Repetir asignación</button>
         <button class="btn" id="editPairs">✏️ Modificar parejas</button>
-        <button class="btn danger" id="undoDraw">↩️ Deshacer sorteo</button>
+        <button class="btn danger" id="undoDraw">↩️ Deshacer asignación</button>
       </div>
       <div id="editBox" class="hidden" style="margin-top:12px">
-        <p class="help">Cambia cualquier nombre (por ejemplo, una baja por un reserva) y pulsa guardar. Si hay pool online, el sorteo se vuelve a publicar en la web.</p>
+        <p class="help">Cambia cualquier nombre (por ejemplo, una baja por un reserva) y pulsa guardar. Si hay pool online, las pistas se vuelven a publicar en la web.</p>
         <div id="editCourts"></div>
         <div class="row wrap">
           <button class="btn primary" id="editSave">💾 Guardar y publicar</button>
@@ -271,7 +271,7 @@ input[type=email],input[type=password],input[type=date],input[type=number]{width
           <ul class="checks" id="checks" style="margin-top:8px"></ul>
         </details>
       </div>
-      <button class="btn primary hidden" id="newWeek" style="width:100%">➡️ Empezar nueva semana con este sorteo</button>
+      <button class="btn primary hidden" id="newWeek" style="width:100%">➡️ Empezar nueva semana con estas pistas</button>
     </div>
   </section>
 </main>
@@ -453,7 +453,7 @@ function renderSavedDraws(){
     const b = document.createElement("button");
     b.className = "btn saved" + (i ? " ghost" : " primary") + (d.date === used && state.last.length ? " used" : "");
     b.innerHTML = `👥 Utilizar lista de jugadores de semana ${esc(poolDate(d))}` +
-      `<small>${d.players.length} jugadores · ${d.courts.length} pista(s) · sorteo hecho el ${new Date(d.date).toLocaleDateString("es-ES")}${d.date === used && state.last.length ? " · ✅ en uso" : ""}</small>`;
+      `<small>${d.players.length} jugadores · ${d.courts.length} pista(s) · pistas asignadas el ${new Date(d.date).toLocaleDateString("es-ES")}${d.date === used && state.last.length ? " · ✅ en uso" : ""}</small>`;
     b.onclick = () => loadDraw(d);
     box.appendChild(b);
   });
@@ -618,7 +618,7 @@ function renderStats(){
   $("stats").innerHTML = total ? `<span class="pill">${total} jugadores</span><span class="pill h">♂ ${H}</span><span class="pill m">♀ ${M}</span><span class="pill">${N/4} pista(s)</span>` : "";
   let html = "";
   if (total && total < 4) html += `<div class="note warn">Hacen falta al menos 4 jugadores para una pista.</div>`;
-  if (fuera.length && N) html += `<div class="note warn">Solo se sortean pistas completas: entran los ${N} primeros por orden. Quedan fuera: ${fuera.map(p => esc(p.name)).join(", ")}.</div>`;
+  if (fuera.length && N) html += `<div class="note warn">Solo se asignan pistas completas: entran los ${N} primeros por orden. Quedan fuera: ${fuera.map(p => esc(p.name)).join(", ")}.</div>`;
   if (N) html += modoAviso(H, M);
   $("pNote").innerHTML = html;
 }
@@ -641,24 +641,24 @@ $("nextTuesday").onclick = () => {
 /* ---------- PASO 4: sorteo ---------- */
 const MODOS = {
   mixto:     {t: "👫 Mixto",     d: "chico + chica"},
-  chicos:    {t: "👬 Chicos",    d: "dos chicos"},
-  chicas:    {t: "👭 Chicas",    d: "dos chicas"},
+  chicos:    {t: "👬 Masculino", d: "dos chicos"},
+  chicas:    {t: "👭 Femenino",  d: "dos chicas"},
   aleatorio: {t: "🎲 Aleatorio", d: "sin mirar el sexo"},
 };
 // Aviso sobre cómo saldrán las parejas con los jugadores que entran en el sorteo
 function modoAviso(H, M){
   const m = state.modo;
-  if (m === "aleatorio") return `<div class="note ok">🎲 Sorteo aleatorio total: las parejas se forman sin mirar el sexo.</div>`;
+  if (m === "aleatorio") return `<div class="note ok">🎲 Asignación aleatoria total: las parejas se forman sin mirar el sexo.</div>`;
   if (m === "mixto") return H === M ? `<div class="note ok">✅ Todas las parejas pueden ser chico + chica.</div>`
     : `<div class="note warn">Hay ${H} chicos y ${M} chicas: ${Math.floor(Math.abs(H-M)/2)} pareja(s) serán del mismo sexo.</div>`;
   const otros = m === "chicos" ? M : H, sexo = m === "chicos" ? "chica(s)" : "chico(s)";
   if (!otros) return `<div class="note ok">✅ Todas las parejas pueden ser de ${m === "chicos" ? "dos chicos" : "dos chicas"}.</div>`;
-  return `<div class="note warn">Sorteo de ${m}, pero hay ${otros} ${sexo}: se emparejarán entre ellos${(H % 2 && M % 2) ? " y saldrá 1 pareja mixta" : ""}.</div>`;
+  return `<div class="note warn">Asignación ${m === "chicos" ? "masculina" : "femenina"}, pero hay ${otros} ${sexo}: se emparejarán entre ellos${(H % 2 && M % 2) ? " y saldrá 1 pareja mixta" : ""}.</div>`;
 }
 function renderModos(){
   if (state.parejasFijas) {
     $("modos").innerHTML = "";
-    $("modoNote").innerHTML = `<div class="note ok">👫 Evento de <b>parejas fijas</b>: se respetan las parejas tal como se apuntaron y solo se sortean las pistas.</div>`;
+    $("modoNote").innerHTML = `<div class="note ok">👫 Evento de <b>parejas fijas</b>: se respetan las parejas tal como se apuntaron y solo se asignan las pistas.</div>`;
     return;
   }
   $("modos").innerHTML = Object.entries(MODOS).map(([k, m]) => `<button class="modo${state.modo === k ? " on" : ""}" data-modo="${k}">${m.t}<small>${m.d}</small></button>`).join("");
@@ -676,7 +676,7 @@ function renderPre(){
   if (window.renderCloudSorteo) renderCloudSorteo();
 }
 
-/* Solo se sortean pistas completas: entran los primeros múltiplos de 4 por orden de inscripción
+/* Solo se asignan pistas completas: entran los primeros múltiplos de 4 por orden de inscripción
    (p. ej. con 9 apuntados entran los 8 primeros y el 9.º queda fuera) */
 function drawPlayers(){
   const ordered = state.players.map((p, i) => ({p, i})).sort((a, b) => ((a.p.num || 1e6) - (b.p.num || 1e6)) || (a.i - b.i)).map(x => x.p);
@@ -796,7 +796,7 @@ function drawFixed(){
   const lastCourt = new Map();
   state.last.forEach((c, ci) => c.pairs.forEach(pr => pr.forEach(x => { if (x) lastCourt.set(norm(x), ci + 1); })));
   let id = 0;
-  const parejas = completas.slice(0, n).map(k => grupos.get(k).map(p => ({id: id++, name: p.name, g: p.g, key: norm(p.name)})));
+  const parejas = completas.slice(0, n).map(k => grupos.get(k).map(p => ({id: id++, name: p.name, g: p.g, key: norm(p.name), par: k})));
   const fuera = completas.slice(n).concat(sueltos).flatMap(k => grupos.get(k).map(p => p.name));
   const rep = orden => orden.reduce((t, pr, k) => t + pr.filter(p => lastCourt.get(p.key) === (k >> 1) + 1).length, 0);
   // muchos órdenes al azar; entre los que menos repiten pista de la semana pasada, uno al azar
@@ -811,8 +811,20 @@ function drawFixed(){
   return {courts, fixed: true, repCourt: mejor === Infinity ? 0 : mejor, ctx: {players: parejas.flat(), fuera, lastCourt, lastPairs: new Set()}};
 }
 function verifyFixed(res){
+  // seguridad: cada pareja de cada pista tiene que ser exactamente una de las parejas apuntadas
+  const intactas = res.courts.every(c => c.every(pr => pr.length === 2 && pr[0].par === pr[1].par))
+    && new Set(res.courts.flat().map(pr => pr[0].par)).size === res.courts.flat().length;
+  // ¿cumplen las parejas la asignación elegida? (solo si la app recuerda el sexo de los dos)
+  const modo = state.modo || "mixto", malas = [];
+  if (modo !== "aleatorio") res.courts.flat().forEach(pr => {
+    const g = pr.map(p => recall(p.name));
+    if (!g.every(x => x === "H" || x === "M")) return;
+    if ((modo === "mixto" && g[0] === g[1]) || (modo === "chicos" && g.some(x => x === "M")) || (modo === "chicas" && g.some(x => x === "H")))
+      malas.push(pr.map(p => p.name).join(" + "));
+  });
   const checks = [
-    [true, "👫 Parejas fijas: se mantienen tal como se apuntaron"],
+    [intactas, intactas ? "👫 Parejas fijas: se mantienen tal como se apuntaron" : "⚠️ ERROR: alguna pareja no coincide con la apuntada. No publiques este resultado"],
+    ...(malas.length ? [[false, `Parejas que no cumplen ${MODOS[modo].t} (${MODOS[modo].d}): ${malas.join(", ")}`]] : []),
     [true, "Pistas asignadas al azar"],
     [!res.repCourt, res.repCourt ? `Jugadores que repiten pista (inevitable): ${res.repCourt}` : "Ningún jugador repite pista de la semana pasada"],
     ...(res.ctx.fuera.length ? [[true, `Solo pistas completas: sin pista ${res.ctx.fuera.join(", ")}`]] : []),
@@ -836,8 +848,8 @@ function verify(res){
   const checks = [
     [allOnce, "Todos los jugadores aparecen exactamente una vez (ninguno falta ni está duplicado)"],
     [full, "Todas las pistas tienen exactamente 2 parejas"],
-    [sc.pref===maxPref, modo === "aleatorio" ? "Tipo de sorteo: 🎲 aleatorio (sin mirar el sexo)"
-      : `Tipo de sorteo ${MODOS[modo].t}: ${sc.pref} de ${maxPref} parejas posibles de ${MODOS[modo].d}`],
+    [sc.pref===maxPref, modo === "aleatorio" ? "Asignación de pistas: 🎲 aleatorio (sin mirar el sexo)"
+      : `Asignación de pistas ${MODOS[modo].t}: ${sc.pref} de ${maxPref} parejas posibles de ${MODOS[modo].d}`],
     [!repPairs.length, repPairs.length ? `Parejas repetidas inevitables: ${repPairs.length}` : "Ninguna pareja repite de la semana pasada"],
     [!repCourts.length, repCourts.length ? `Jugadores que repiten pista (inevitable): ${repCourts.length}` : "Ningún jugador repite pista de la semana pasada"],
     [true, "Parejas y pistas asignadas al azar, sin seguir el orden de la lista"],
@@ -850,8 +862,8 @@ function verify(res){
     if (inc>=0) exc.push(`${N} jugadores no es múltiplo de 4: la Pista ${inc+1} no tiene 2 parejas completas.`);
   }
   if (modo === "mixto" && maxPref*2 < N - (N%2)) exc.push(`hay ${H} hombres y ${M} mujeres, así que ${Math.floor((N - 2*maxPref)/2)} pareja(s) son del mismo sexo.`);
-  if (modo === "chicos" && M) exc.push(`sorteo de chicos con ${M} chica(s): se han emparejado entre ellas${(H % 2 && M % 2) ? " (1 pareja mixta)" : ""}.`);
-  if (modo === "chicas" && H) exc.push(`sorteo de chicas con ${H} chico(s): se han emparejado entre ellos${(H % 2 && M % 2) ? " (1 pareja mixta)" : ""}.`);
+  if (modo === "chicos" && M) exc.push(`asignación masculina con ${M} chica(s): se han emparejado entre ellas${(H % 2 && M % 2) ? " (1 pareja mixta)" : ""}.`);
+  if (modo === "chicas" && H) exc.push(`asignación femenina con ${H} chico(s): se han emparejado entre ellos${(H % 2 && M % 2) ? " (1 pareja mixta)" : ""}.`);
   if (repPairs.length) exc.push(`no ha sido posible evitar repetir pareja: ${repPairs.join(", ")}.`);
   if (repCourts.length) exc.push(`no ha sido posible evitar que repitan pista: ${repCourts.join(", ")}.`);
   return {checks, exc};
@@ -876,13 +888,13 @@ function formatText(res, v){
 let lastText = "";
 async function runDraw(){
   if (state.players.length < 4) return;
-  $("doDraw").disabled = true; $("doDraw").textContent = "Sorteando…";
+  $("doDraw").disabled = true; $("doDraw").textContent = "Asignando…";
   if (window.prepareCloudDraw) await prepareCloudDraw();   // sorteo anterior publicado → evitar repetir pareja y pista
   setTimeout(() => {
     const res = state.parejasFijas ? drawFixed() : draw(), v = state.parejasFijas ? verifyFixed(res) : verify(res);
     showResult(res, v);
     if (window.onDrawn) window.onDrawn(res);   // ☁ publicar en la web si hay pool online
-    $("doDraw").disabled = false; $("doDraw").textContent = "🎲 Realizar sorteo";
+    $("doDraw").disabled = false; $("doDraw").textContent = "🎾 Asignar pistas";
     $("resultWrap").scrollIntoView({behavior:"smooth"});
   }, 30);
 }
@@ -939,7 +951,7 @@ $("editSave").onclick = () => {
   const res = {courts: courts.map(c => c.filter(pr => pr.some(Boolean)).map(pr => pr.filter(Boolean).map(person))).filter(c => c.length),
     fuera: (prev.fuera || []).filter(n => !names.some(m => norm(m) === norm(n)))};
   const unknown = names.filter(n => !recall(n));
-  const checks = [[true, "Parejas modificadas a mano después del sorteo"]];
+  const checks = [[true, "Parejas modificadas a mano después de asignar las pistas"]];
   if (unknown.length) checks.push([false, `Sin sexo guardado (se toma como hombre): ${unknown.join(", ")}`]);
   const incompletas = res.courts.filter(c => c.length < 2 || c.some(pr => pr.length < 2)).length;
   if (incompletas) checks.push([false, `${incompletas} pista(s) no tienen 2 parejas completas`]);
@@ -1030,14 +1042,14 @@ document.addEventListener("click", e => {
 });
 
 $("undoDraw").onclick = async () => {
-  if (!await ask("¿Deshacer el sorteo?\n\nSe borra el resultado, también de la web, y la inscripción vuelve a quedar abierta como antes del sorteo.", "Deshacer")) return;
+  if (!await ask("¿Deshacer la asignación de pistas?\n\nSe borra el resultado, también de la web, y la inscripción vuelve a quedar abierta como antes de asignar las pistas.", "Deshacer")) return;
   if (window.undoCloudDraw && !await undoCloudDraw()) return;
   const head = state.header.trim(), draws = getDraws();
   if (draws.length && draws[0].header === head) draws.shift();
   store.set("draws", draws); store.set("lastDraw", draws[0] || null); store.set("lastResult", null);
   lastText = ""; $("result").innerHTML = ""; $("checks").innerHTML = "";
   $("resultWrap").classList.add("hidden"); $("editBox").classList.add("hidden");
-  renderPre(); toast("↩️ Sorteo deshecho");
+  renderPre(); toast("↩️ Asignación deshecha");
 };
 $("newWeek").onclick = () => { loadDraw(getDraws()[0]); go(2); };
 function restoreResult(){
@@ -1060,7 +1072,7 @@ $("shareRes").onclick = async () => {
 };
 
 $("resetAll").onclick = async () => {
-  if (!await ask("⚠️ Vas a RESETEAR TODOS LOS DATOS DE LA APLICACIÓN en este móvil.\n\nSe borrará:\n• la lista de jugadores y el último sorteo\n• la cabecera y los ajustes guardados\n• la lista de jugadores iniciales y los clubes memorizados\n• tu sesión de organizador (tendrás que volver a entrar)\n\nLos eventos publicados en la web NO se borran.\n\n¿Seguro que quieres resetear? No se puede deshacer.", "Sí, resetear todo",
+  if (!await ask("⚠️ Vas a RESETEAR TODOS LOS DATOS DE LA APLICACIÓN en este móvil.\n\nSe borrará:\n• la lista de jugadores y la última asignación de pistas\n• la cabecera y los ajustes guardados\n• la lista de jugadores iniciales y los clubes memorizados\n• tu sesión de organizador (tendrás que volver a entrar)\n\nLos eventos publicados en la web NO se borran.\n\n¿Seguro que quieres resetear? No se puede deshacer.", "Sí, resetear todo",
     "Borrar también la agenda de jugadores (el sexo recordado de cada nombre)")) return;
   const keepMemory = !$("modalCheck").checked;
   if (!keepMemory && window.clearCloudAgenda) await clearCloudAgenda();

@@ -29,7 +29,7 @@ const DAYS_EN = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY
 const poolTitle = iso => { const d = fromIso(iso); return window.APP_LANG === "en" ? `${DAYS_EN[d.getDay()]} POOL` : `POOL DEL ${DIAS[d.getDay()]}`; };
 const poolUrl = p => WEB_URL + "?pool=" + p.codigo;
 window.poolUrl = poolUrl;
-const ESTADOS = {abierta: ["Inscripción abierta", ""], cerrada: ["Inscripción cerrada", "warnp"], sorteada: ["Sorteo realizado · solo reservas", "okp"]};
+const ESTADOS = {abierta: ["Inscripción abierta", ""], cerrada: ["Inscripción cerrada", "warnp"], sorteada: ["Pistas asignadas · solo reservas", "okp"]};
 // Lista y reservas de un evento. Con parejas fijas manda el hueco; si no, el orden de inscripción.
 // Los que se apuntan después del sorteo (reserva = true) siempre van a reservas.
 function partir(p, inscritos){
@@ -39,7 +39,7 @@ function partir(p, inscritos){
   return {lista: normal.slice(0, max), reservas: normal.slice(max).concat(inscritos.filter(i => i.reserva))};
 }
 
-/* Cabecera del sorteo (texto) <-> campos de la pool */
+/* Cabecera de las pistas (texto) <-> campos de la pool */
 function poolToHeader(p){
   return [p.titulo, p.horario && `HORARIO: ${p.horario}`, p.importe && `IMPORTE: ${p.importe}`, p.club && `CLUB: ${p.club}`, p.notas].filter(Boolean).join("\n");
 }
@@ -249,11 +249,11 @@ function poolFormHtml(px, v, boton){
         <input type="text" id="${px}Club" value="${esc(v.club ?? (getClubes()[0] || ""))}" placeholder="Nombre del club" style="margin-top:4px">
         <div class="chips" id="${px}Clubs" style="margin-top:6px">${clubChips()}</div></div>
       <label class="lbl">Notas (opcional, se ven en la web)<textarea id="${px}Notas" style="min-height:60px" placeholder="Ej.: PÁDEL INDOOR · Traed bolas">${esc(v.notas || "")}</textarea></label>
-      <div class="lbl">Tipo de sorteo (se ve en la web)
+      <div class="lbl">Asignación de pistas (se ve en la web)
         <div class="modos" id="${px}Tipo" style="margin-top:4px">${Object.entries(MODOS).map(([k, m]) => `<button type="button" class="modo${(v.tipo_sorteo || state.modo || "mixto") === k ? " on" : ""}" data-tipo="${k}">${m.t}<small>${m.d}</small></button>`).join("")}</div></div>
       <label style="display:flex;gap:10px;align-items:center;font-weight:600;font-size:15px;padding:4px 0">
         <input type="checkbox" id="${px}Fijas" ${v.parejas_fijas ? "checked" : ""} style="width:22px;height:22px;margin:0">
-        Parejas fijas <span class="help" style="font-weight:400">(se apuntan por parejas y el sorteo solo reparte pistas)</span></label>
+        Parejas fijas <span class="help" style="font-weight:400">(se apuntan por parejas y solo se asignan las pistas)</span></label>
       <div class="row"><label class="lbl" style="flex:1">Pistas <span class="help" id="${px}Plazas">(${Math.max(1, Math.round((v.max_jugadores || 20) / 4)) * 4} plazas)</span><select id="${px}Pistas">${opciones1a10(Math.max(1, Math.round((v.max_jugadores || 20) / 4)))}</select></label>
         <label class="lbl" style="flex:1">Reservas<select id="${px}Res">${opciones1a10(v.max_reservas ?? 10)}</select></label></div>
       <div class="lbl">👥 Otros administradores <span class="help" style="font-weight:400">(podrán ver y gestionar este evento)</span>
@@ -357,9 +357,21 @@ async function apuntarFijos(pool, nombres, numeros = []){
   const ocupados = new Set(cloud.inscritos.map(i => i.posicion).filter(x => x != null));
   if (pool.parejas_fijas) {
     // primero los que piden un hueco concreto (si está libre); después, el resto en los siguientes huecos libres
-    nuevos.forEach(x => { const k = x.num != null ? x.num - 1 : -1; if (k >= 0 && k < cap && !ocupados.has(k)) { x.pos = k; ocupados.add(k); } });
-    let k = 0;
-    nuevos.forEach(x => { if (x.pos != null) return; while (k < cap && ocupados.has(k)) k++; if (k < cap) { x.pos = k; ocupados.add(k); } });
+    const pend = new Map(), rechazados = [];
+    nuevos.forEach(x => {
+      const k = x.num != null ? x.num - 1 : -1;
+      if (k < 0 || k >= cap || ocupados.has(k)) return;
+      const mal = parejaNoValida(pool, x.n, k, pend);
+      if (mal) { x.rechazo = mal; return; }
+      x.pos = k; ocupados.add(k); pend.set(k, x.n);
+    });
+    nuevos.forEach(x => {
+      if (x.pos != null || x.rechazo) return;
+      for (let k = 0; k < cap; k++) if (!ocupados.has(k) && !parejaNoValida(pool, x.n, k, pend)) { x.pos = k; ocupados.add(k); pend.set(k, x.n); return; }
+      x.rechazo = parejaNoValida(pool, x.n, [...Array(cap).keys()].find(k => !ocupados.has(k)) ?? 0, pend) || `${x.n}: no queda hueco libre`;
+    });
+    nuevos.forEach(x => { if (x.rechazo) rechazados.push(x.rechazo); });
+    if (rechazados.length) setTimeout(() => avisar(`⚠️ No se ha podido apuntar a ${rechazados.length === 1 ? "este jugador" : "estos jugadores"}:\n\n• ${rechazados.join("\n• ")}`), 300);
   }
   const filas = nuevos.filter(x => !pool.parejas_fijas || x.pos != null)
     .map((x, i) => ({pool_id: pool.id, nombre: x.n, created_at: new Date(t0 + i * 10).toISOString(), ...(pool.parejas_fijas ? {posicion: x.pos} : pool.estado === "sorteada" ? {reserva: true} : {})}));
@@ -367,6 +379,24 @@ async function apuntarFijos(pool, nombres, numeros = []){
   if (error) throw error;
   await loadInscritos();
   return filas.length;
+}
+
+/* Parejas fijas: según la asignación de pistas, ¿se puede poner a «nombre» en el hueco k?
+   Mixto: no dos chicos ni dos chicas · Masculino: solo chicos · Femenino: solo chicas.
+   Solo se comprueba si la app recuerda el sexo. Devuelve el motivo o null si se puede. */
+// Aviso con un solo botón
+async function avisar(msg){ $("modalNo").classList.add("hidden"); try { await ask(msg, "Entendido"); } finally { $("modalNo").classList.remove("hidden"); } }
+function parejaNoValida(pool, nombre, k, pendientes){
+  if (!pool.parejas_fijas) return null;
+  const tipo = pool.tipo_sorteo || "mixto", g = recall(nombre);
+  if (!["mixto", "chicos", "chicas"].includes(tipo) || (g !== "H" && g !== "M")) return null;
+  if (tipo === "chicos" && g === "M") return `${nombre} es chica y la asignación es masculina (dos chicos)`;
+  if (tipo === "chicas" && g === "H") return `${nombre} es chico y la asignación es femenina (dos chicas)`;
+  if (tipo === "mixto") {
+    const comp = (pendientes && pendientes.get(k ^ 1)) || (cloud.inscritos.find(i => i.posicion === (k ^ 1)) || {}).nombre;
+    if (comp && recall(comp) === g) return `${nombre} y ${comp} serían ${g === "H" ? "dos chicos" : "dos chicas"}, y las parejas son mixtas`;
+  }
+  return null;
 }
 
 /* Apuntar en un puesto concreto («3 Jose»): pregunta qué hacer con quien ocupa ese puesto ahora.
@@ -385,6 +415,8 @@ async function apuntarEnPuesto(pool, nombre, num){
   if (pool.parejas_fijas) {
     const k = num - 1;
     if (k < 0 || k >= cap) return apuntarFijos(pool, [nombre]);
+    const mal = parejaNoValida(pool, nombre, k);
+    if (mal) { await avisar(`⚠️ No se puede poner a ${nombre} en el hueco ${num}:\n\n${mal}.`); return 0; }
     const ocupa = cloud.inscritos.find(i => i.posicion === k);
     if (!ocupa) return insertar({posicion: k, created_at: new Date().toISOString()});
     const sitio = k < pool.max_jugadores ? `pareja ${Math.floor(k / 2) + 1}` : `pareja de reserva ${Math.floor((k - pool.max_jugadores) / 2) + 1}`;
@@ -411,6 +443,9 @@ async function apuntarEnPuesto(pool, nombre, num){
 function cloudError(e){
   const m = String(e && (e.message || e.error_description) || e);
   if (/Invalid login credentials/i.test(m)) return "Email o contraseña incorrectos.";
+  if (/PAREJA_MIXTA/.test(m)) return "En una pareja mixta no puede haber dos chicos ni dos chicas.";
+  if (/PAREJA_SOLO_CHICOS/.test(m)) return "La asignación es masculina: solo pueden apuntarse chicos.";
+  if (/PAREJA_SOLO_CHICAS/.test(m)) return "La asignación es femenina: solo pueden apuntarse chicas.";
   if (/EVENTO_DUPLICADO|pools_unico/i.test(m)) return "Ya hay un evento con ese nombre, ese día y a esa hora. Cambia la hora o el nombre.";
   if (/Failed to fetch|NetworkError|network/i.test(m)) return "Sin conexión a internet.";
   if (/row-level security|permission denied/i.test(m)) return "Tu usuario no tiene permiso de organizador.";
@@ -672,12 +707,12 @@ window.renderCloudPlayersInfo = () => {
       </div></div>`;
   // reservas: no entran en el sorteo, pero se pueden quitar desde aquí
   const reservas = partir(p, cloud.inscritos).reservas;
-  $("cloudReservas").innerHTML = reservas.length ? `<div class="card"><div style="font-weight:700;margin-bottom:6px">Reservas <span class="help">(no entran en el sorteo)</span></div>
+  $("cloudReservas").innerHTML = reservas.length ? `<div class="card"><div style="font-weight:700;margin-bottom:6px">Reservas <span class="help">(no entran en la asignación de pistas)</span></div>
     <ul class="plist">${reservas.map((i, k) => `<li><span class="num">R${p.parejas_fijas ? Math.floor((i.posicion - p.max_jugadores) / 2) + 1 : k + 1}.</span><span class="nm" style="cursor:default">${esc(i.nombre)}${(cloud.telefonos || {})[i.id] ? `<a class="tel" href="#" data-tel="${esc(cloud.telefonos[i.id])}" data-id="${esc(i.id)}">📞 ${esc(cloud.telefonos[i.id])}</a>` : `<button type="button" class="tagbtn addtel" data-addtel="${esc(i.id)}" data-nombre="${esc(i.nombre)}">＋📞</button>`}</span>
       <button class="x" data-quitar="${esc(i.id)}" title="Quitar del evento">×</button></li>`).join("")}</ul></div>` : "";
   $("cloudReservas").querySelectorAll("[data-quitar]").forEach(b => b.onclick = () => quitarInscrito(b.dataset.quitar));
   $("cloudReservas").querySelectorAll("[data-addtel]").forEach(b => b.onclick = () => editarTelefono(b.dataset.addtel, b.dataset.nombre));
-  box.innerHTML = avisosHtml(p.id) + `<div class="note ok" style="margin-bottom:12px">☁ <b>${esc(p.titulo)}</b>: ${state.players.length} de ${p.max_jugadores} plazas${res ? ` · ${res} en reservas (no entran)` : ""}. Se actualiza solo.${p.parejas_fijas ? "<br>👫 <b>Parejas fijas</b>: se respetan las parejas; el sorteo solo reparte las pistas." : ""}</div>` + apuntar;
+  box.innerHTML = avisosHtml(p.id) + `<div class="note ok" style="margin-bottom:12px">☁ <b>${esc(p.titulo)}</b>: ${state.players.length} de ${p.max_jugadores} plazas${res ? ` · ${res} en reservas (no entran)` : ""}. Se actualiza solo.${p.parejas_fijas ? "<br>👫 <b>Parejas fijas</b>: se respetan las parejas; solo se asignan las pistas." : ""}</div>` + apuntar;
   wireApuntar(p); wireAvisos();
 };
 
@@ -705,16 +740,16 @@ window.renderCloudSorteo = () => {
   if (!cloud.organizer || !p) { box.innerHTML = ""; return; }
   const oculto = p.mostrar_sorteo === false;
   box.innerHTML = `<div class="card">
-      <div style="font-weight:700;margin-bottom:8px">Sorteo en la web</div>
-      <button class="btn ${oculto ? "danger" : ""}" id="cVis" style="width:100%">${oculto ? "🙈 Sorteo oculto en la web" : "👁 Sorteo visible en la web"}</button>
-      <p class="help" style="margin:6px 0 0">${oculto ? "Los jugadores no ven el resultado. Pulsa para mostrarlo." : "Los jugadores ven el resultado en cuanto sorteas. Pulsa para ocultarlo."}</p>
+      <div style="font-weight:700;margin-bottom:8px">Pistas en la web</div>
+      <button class="btn ${oculto ? "danger" : ""}" id="cVis" style="width:100%">${oculto ? "🙈 Pistas ocultas en la web" : "👁 Pistas visibles en la web"}</button>
+      <p class="help" style="margin:6px 0 0">${oculto ? "Los jugadores no ven el resultado. Pulsa para mostrarlo." : "Los jugadores ven el resultado en cuanto asignas las pistas. Pulsa para ocultarlo."}</p>
     </div>`;
   $("cVis").onclick = () => guard(async () => {
     const mostrar = p.mostrar_sorteo === false;
     const { error } = await cloud.sb.from("pools").update({mostrar_sorteo: mostrar}).eq("id", p.id);
     if (error) throw error;
     await reloadPool();
-    toast(mostrar ? "👁 El sorteo ya se ve en la web" : "🙈 El sorteo queda oculto en la web");
+    toast(mostrar ? "👁 Las pistas ya se ven en la web" : "🙈 Las pistas quedan ocultas en la web");
   }).then(() => window.renderCloudSorteo());
 };
 
@@ -863,7 +898,7 @@ function renderLista(box){
   box.querySelectorAll("[data-compartir]").forEach(b => b.onclick = () => compartirEvento(cloud.pools.find(y => y.id === b.dataset.compartir)));
   box.querySelectorAll("[data-borrar]").forEach(b => b.onclick = async () => {
     const x = cloud.pools.find(y => y.id === b.dataset.borrar);
-    if (!await ask(`¿Quieres eliminar el evento «${x.titulo}» (${fechaCorta(x.fecha)})?\n\nSe borrarán también sus apuntados y su sorteo, y desaparecerá de la web. No se puede deshacer.`, "Eliminar")) return;
+    if (!await ask(`¿Quieres eliminar el evento «${x.titulo}» (${fechaCorta(x.fecha)})?\n\nSe borrarán también sus apuntados y sus pistas asignadas, y desaparecerá de la web. No se puede deshacer.`, "Eliminar")) return;
     guard(async () => {
       const { error } = await cloud.sb.from("pools").delete().eq("id", x.id); if (error) throw error;
       if (cloud.pool && cloud.pool.id === x.id) { cloud.pool = null; store.set("cloudPool", null); }
@@ -936,7 +971,7 @@ function renderCloud(){
       ${p.fecha ? `<div style="font-weight:600;font-size:14px;margin-top:2px">📅 ${esc(fromIso(p.fecha).toLocaleDateString("es-ES", {day: "2-digit", month: "2-digit", year: "numeric"}))}</div>` : ""}
       <div class="help" style="margin:2px 0 0">${esc([DEPORTES[p.deporte || "padel"], p.horario, p.importe].filter(Boolean).join(" · "))} · código ${esc(p.codigo)}</div>
       ${p.club ? `<div class="help" style="margin:2px 0 0">📍 ${esc(p.club)}</div>` : ""}</div>
-      <span class="pill ${est[1]}">${est[0]}</span>${cloud.sorteado ? `<span class="pill okp" style="margin-left:4px">🎲 Sorteo realizado</span>` : ""}</div>
+      <span class="pill ${est[1]}">${est[0]}</span>${cloud.sorteado ? `<span class="pill okp" style="margin-left:4px">🎾 Pistas asignadas</span>` : ""}</div>
       <div class="stats"><span class="pill">${lista.length} / ${max} jugadores</span>${reservas.length ? `<span class="pill">${reservas.length} en reservas</span>` : ""}
         <span class="pill h">♂ ${H}</span><span class="pill m">♀ ${M}</span>${sinMarcar.length ? `<span class="pill warnp">${sinMarcar.length} sin marcar</span>` : ""}${lista.length >= max ? `<span class="pill okp">🟢 Completa</span>` : ""}</div>
       <div class="help" style="margin:10px 0 0;word-break:break-all">${esc(poolUrl(p))}</div>
@@ -948,11 +983,12 @@ function renderCloud(){
         <button class="btn small ghost" id="cEdit">✏️ Editar datos evento</button>
         <button class="btn small ghost" id="cSemana">🔁 Nueva semana</button>
         <button class="btn small ghost" id="cTelegram">📣 Telegram${p.telegram_canal && nombreCanal(p.telegram_canal) ? ": " + esc(nombreCanal(p.telegram_canal)) : ""}</button>
+        ${p.telegram_canal ? `<button class="btn small ghost" id="cTgRepublicar">🔄 Republicar en Telegram</button>` : ""}
         <button class="btn small danger" id="cDelPool">🗑 Borrar</button>
       </div>
       ${p.notas ? `<div class="help" style="margin:8px 0 0;white-space:pre-line">${esc(p.notas)}</div>` : ""}
       <div id="cEditBox" class="hidden">${poolFormHtml("e", p, "💾 Guardar y publicar en la web")}</div>
-      ${sinMarcar.length ? `<div class="help" style="margin:6px 0 0">Marca H o M de cada jugador en la pestaña «Jugadores» para poder sortear. La app lo recordará para las siguientes pools.</div>` : ""}
+      ${sinMarcar.length ? `<div class="help" style="margin:6px 0 0">Marca H o M de cada jugador en la pestaña «Jugadores» para poder asignar pistas. La app lo recordará para las siguientes pools.</div>` : ""}
     </div>`);
   } else {
     html.push(`<div class="card"><b>No hay ningún evento creado.</b><p class="help" style="margin:4px 0 0">Crea el primero aquí abajo.</p></div>`);
@@ -1036,11 +1072,11 @@ function wireCloud(){
   on("cClose", () => guard(async () => { const { error } = await cloud.sb.from("pools").update({estado: "cerrada"}).eq("id", p.id); if (error) throw error; await reloadPool(); toast("Inscripción cerrada"); }));
   on("cOpen", async () => {
     // con el sorteo hecho, reabrir permite que alguien se borre (o se apunte); el sorteo publicado se queda como está
-    if (p.estado === "sorteada" && !await ask("Se reabre la inscripción: los jugadores podrán borrarse y apuntarse otra vez (también como reservas) desde la web.\n\nEl sorteo publicado se mantiene tal cual. Si hay cambios, vuelve a sortear o usa «Modificar parejas» y se publicará de nuevo.", "Reabrir")) return;
+    if (p.estado === "sorteada" && !await ask("Se reabre la inscripción: los jugadores podrán borrarse y apuntarse otra vez (también como reservas) desde la web.\n\nLas pistas publicadas se mantienen tal cual. Si hay cambios, vuelve a asignar pistas o usa «Modificar parejas» y se publicará de nuevo.", "Reabrir")) return;
     guard(async () => { const { error } = await cloud.sb.from("pools").update({estado: "abierta"}).eq("id", p.id); if (error) throw error; await reloadPool(); toast("Inscripción abierta"); });
   });
   on("cDelPool", async () => {
-    if (!await ask(`¿Quieres eliminar el evento «${p.titulo}»?\n\nSe borrarán también sus apuntados y su sorteo, y desaparecerá de la web. No se puede deshacer.`, "Eliminar")) return;
+    if (!await ask(`¿Quieres eliminar el evento «${p.titulo}»?\n\nSe borrarán también sus apuntados y sus pistas asignadas, y desaparecerá de la web. No se puede deshacer.`, "Eliminar")) return;
     guard(async () => { const { error } = await cloud.sb.from("pools").delete().eq("id", p.id); if (error) throw error; store.set("cloudPool", null); cloud.pool = null; await loadPools(); cloud.vista = "lista"; toast("Evento eliminado"); });
   });
   document.querySelectorAll("#cloudBox [data-sx]").forEach(g => g.querySelectorAll("input").forEach(inp => inp.onchange = () => {
@@ -1049,6 +1085,16 @@ function wireCloud(){
   document.querySelectorAll("#cloudBox [data-pick]").forEach(el => el.onclick = () => guard(async () => { await selectPool(cloud.pools.find(x => x.id === el.dataset.pick)); }));
   wirePoolForm("n"); wirePoolForm("e"); wireAdmins("n"); wireAdmins("e");
   on("cTelegram", () => elegirCanal(p));
+  // Borra del canal los mensajes de este evento y publica uno nuevo: las pistas asignadas si ya están, o la lista
+  on("cTgRepublicar", async () => {
+    const que = cloud.sorteado && p.mostrar_sorteo !== false ? "las pistas asignadas" : "la lista actual de jugadores";
+    if (!await ask(`🔄 ¿Republicar «${p.titulo}» en Telegram?\n\nSe borran del canal los mensajes de este evento y se publica uno nuevo con ${que}.`, "Republicar")) return;
+    guard(async () => {
+      const r = await cloud.sb.rpc("telegram_republicar", {p_pool: p.id});
+      if (r.error) throw new Error(r.error.code === "PGRST202" ? "Falta ejecutar cambio_35_telegram_republicar.sql en Supabase" : /SIN_CANAL/.test(r.error.message || "") ? "Este evento no tiene canal de Telegram" : cloudError(r.error));
+      toast("🔄 Enviado: en unos segundos se actualiza el canal");
+    });
+  });
   on("cSemana", () => nuevaSemana(p));
   on("cEdit", () => { $("cEditBox").classList.toggle("hidden"); if (!$("cEditBox").classList.contains("hidden")) cargarAdminsForm("e", p); });
   on("nSave", () => guard(async () => {
@@ -1192,7 +1238,7 @@ window.guardarTipoCloud = async k => {
   const r = await cloud.sb.from("pools").update({tipo_sorteo: k}).eq("id", p.id).select().single();
   if (r.error) { toast(/tipo_sorteo/i.test(r.error.message || "") ? "Falta ejecutar cambio_12_tipo_sorteo.sql en Supabase" : "No se pudo guardar el tipo en la web"); return; }
   cloud.pool = r.data; cloud.pools = cloud.pools.map(x => x.id === r.data.id ? r.data : x);
-  toast("☁ Tipo de sorteo actualizado en la web");
+  toast("☁ Asignación de pistas actualizada en la web");
 };
 
 /* ---------- paso 3: publicar la cabecera en la pool online ---------- */
@@ -1241,7 +1287,7 @@ window.renderLastInfo = async () => {
   if (!cloud.organizer || !cloud.pool) { box.textContent = ""; return; }
   try {
     const prev = await previousPool();
-    box.textContent = prev ? `Se evitará repetir parejas y pistas de «${prev.titulo}».` : "No hay un sorteo anterior publicado: no hay parejas ni pistas que evitar.";
+    box.textContent = prev ? `Se evitará repetir parejas y pistas de «${prev.titulo}».` : "No hay una asignación de pistas anterior publicada: no hay parejas ni pistas que evitar.";
   } catch(e) { box.textContent = ""; }
 };
 
@@ -1262,8 +1308,8 @@ window.onDrawn = async res => {
     // el texto para WhatsApp («Compartir») lleva también el enlace a la web
     lastText += `\n\n🌐 Ver en la web 👉 ${poolUrl(p)}`;
     const lr = store.get("lastResult", null); if (lr) { lr.text = lastText; store.set("lastResult", lr); }
-    toast(`☁ Sorteo publicado en la web. Pulsa «Compartir» para enviarlo por WhatsApp`);
-  } catch(e) { toast("No se pudo publicar el sorteo: " + cloudError(e)); }
+    toast(`☁ Pistas publicadas en la web. Pulsa «Compartir» para enviarlo por WhatsApp`);
+  } catch(e) { toast("No se pudieron publicar las pistas: " + cloudError(e)); }
 };
 
 /* ---------- deshacer el sorteo: se borra de la web y la inscripción vuelve a como estaba ---------- */
@@ -1280,7 +1326,7 @@ window.undoCloudDraw = async () => {
     cloud.sorteado = false;
     await reloadPool();
     return true;
-  } catch(e) { toast("No se pudo deshacer el sorteo: " + cloudError(e)); return false; }
+  } catch(e) { toast("No se pudo deshacer la asignación de pistas: " + cloudError(e)); return false; }
 };
 
 /* ---------- semana pasada desde la nube (paso 1) ---------- */
@@ -1293,14 +1339,14 @@ window.renderCloudLast = async () => {
   const prev = (data || []).find(x => !cloud.pool || x.id !== cloud.pool.id) || null;
   if (!prev) return;
   const b = document.createElement("button");
-  b.className = "btn saved"; b.innerHTML = `☁ Usar el sorteo publicado de ${esc(prev.titulo)}<small>Descarga las pistas y parejas desde la base de datos</small>`;
+  b.className = "btn saved"; b.innerHTML = `☁ Usar las pistas publicadas de ${esc(prev.titulo)}<small>Descarga las pistas y parejas desde la base de datos</small>`;
   b.onclick = async () => {
     const { data: rs, error } = await cloud.sb.from("resultados").select("pista,pareja,nombre").eq("pool_id", prev.id).order("pista").order("pareja");
     if (error) { toast(cloudError(error)); return; }
     const courts = [];
     rs.forEach(r => { const c = courts[r.pista - 1] ||= {pairs: [[], []]}; (c.pairs[r.pareja - 1] ||= []).push(r.nombre); });
     state.last = courts.filter(Boolean).map(c => ({pairs: c.pairs.map(pr => [pr[0] || "", pr[1] || ""])}));
-    save(); renderCourts(); toast(`Cargado el sorteo de ${prev.titulo}`);
+    save(); renderCourts(); toast(`Cargadas las pistas de ${prev.titulo}`);
   };
   box.appendChild(b);
 };
