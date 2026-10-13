@@ -77,7 +77,7 @@
     "Deporte": "Sport", "Fecha": "Date", "Título": "Title", "Horario": "Time", "Importe": "Price", "Club": "Club",
     "Nombre del club": "Club name",
     "Notas (opcional, se ven en la web)": "Notes (optional, shown on the web)",
-    "Asignación de pistas (se ve en la web)": "Court assignment (shown on the web)",
+    "Tipo de evento": "Event type",
     "Parejas fijas": "Fixed pairs",
     "(se apuntan por parejas y solo se asignan las pistas)": "(players sign up in pairs and only the courts are assigned)",
     "Pistas": "Courts", "Reservas": "Reserves",
