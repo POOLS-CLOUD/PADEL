@@ -255,7 +255,7 @@ function poolFormHtml(px, v, boton){
         <input type="checkbox" id="${px}Fijas" ${v.parejas_fijas ? "checked" : ""} style="width:22px;height:22px;margin:0">
         Parejas fijas <span class="help" style="font-weight:400">(se apuntan por parejas y solo se asignan las pistas)</span></label>
       <div class="row"><label class="lbl" style="flex:1">Pistas <span class="help" id="${px}Plazas">(${Math.max(1, Math.round((v.max_jugadores || 20) / 4)) * 4} plazas)</span><select id="${px}Pistas">${opciones1a10(Math.max(1, Math.round((v.max_jugadores || 20) / 4)))}</select></label>
-        <label class="lbl" style="flex:1"><span id="${px}ResLbl">${v.parejas_fijas ? "Parejas de reserva" : "Reservas"}</span><select id="${px}Res">${opciones1a10(v.parejas_fijas ? Math.min(10, Math.max(1, Math.ceil((v.max_reservas ?? 10) / 2))) : (v.max_reservas ?? 10))}</select></label></div>
+        <label class="lbl" style="flex:1"><span id="${px}ResLbl">${v.parejas_fijas ? "Parejas de reserva" : "Reservas"}</span> <span class="help" id="${px}ResPlazas"></span><select id="${px}Res">${opciones1a10(v.parejas_fijas ? Math.min(10, Math.max(1, Math.ceil((v.max_reservas ?? 10) / 2))) : (v.max_reservas ?? 10))}</select></label></div>
       <div class="lbl">👥 Otros administradores <span class="help" style="font-weight:400">(podrán ver y gestionar este evento)</span>
         <div class="row" style="margin-top:4px"><input type="email" id="${px}AdmIn" placeholder="email@ejemplo.com" autocomplete="off" style="flex:1"><button type="button" class="btn small" id="${px}AdmAdd">Añadir</button></div>
         <div class="chips" id="${px}Adm" style="margin-top:6px">${adminsChips(px)}</div></div>
@@ -289,7 +289,16 @@ function wirePoolForm(px){
     const sel = $(px + "Res"), n = +sel.value || 1;
     $(px + "ResLbl").textContent = fijas.checked ? "Parejas de reserva" : "Reservas";
     sel.value = String(fijas.checked ? Math.max(1, Math.ceil(n / 2)) : Math.min(10, n * 2));
+    plazasReserva();
   });
+  // con parejas fijas, debajo se ven las plazas de reserva: «(4 plazas)»
+  const plazasReserva = () => {
+    const sel = $(px + "Res"), out = $(px + "ResPlazas"); if (!sel || !out) return;
+    const n = +sel.value || 0;
+    out.textContent = fijas && fijas.checked ? `(${n * 2} plazas)` : "";
+  };
+  if ($(px + "Res")) $(px + "Res").addEventListener("change", plazasReserva);
+  plazasReserva();
   ajustarFijas();
   wireClubChips(px);
   const dt = $(px + "Date");
