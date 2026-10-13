@@ -827,7 +827,7 @@ function renderLista(box){
   box.innerHTML = `<button class="btn small ghost" id="lVolver" style="margin-bottom:10px">‹ Menú</button>
     <div class="card"><div style="font-weight:700">🌐 Web de inscripción</div>
       <p class="help" style="margin:2px 0 8px;word-break:break-all">${esc(WEB_URL)}</p>
-      <div class="row wrap"><button class="btn small primary" id="lWebShare">📤 Compartir</button><button class="btn small" id="lWebCopy">📋 Copiar enlace</button></div></div>
+      <div class="row wrap"><button class="btn small primary" id="lWebShare">📤 Compartir enlace</button><button class="btn small" id="lWebCopy">📋 Copiar enlace</button></div></div>
     ${activos.length ? activos.map(fila).join("") : `<div class="card">No hay eventos activos. <a href="#" id="lCrear">Crear uno</a></div>`}
     ${pasados.length ? `<details class="card" ${cloud.verPasados ? "open" : ""} id="lPas"><summary>Eventos pasados (${pasados.length})</summary><div style="margin-top:10px">${pasados.map(fila).join("")}</div></details>` : ""}`;
   $("lVolver").onclick = () => irA("menu");
