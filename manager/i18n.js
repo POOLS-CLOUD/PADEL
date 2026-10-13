@@ -129,7 +129,7 @@
     "🔒 Cerrar también reservas": "🔒 Close the waiting list too",
     "↩️ Deshacer asignación": "↩️ Undo court assignment", "Deshacer": "Undo", "↩️ Asignación deshecha": "↩️ Court assignment undone",
     "Asignando…": "Assigning…",
-    "📞 Llamar": "📞 Call", "🔄 Republicar en Telegram": "🔄 Republish on Telegram", "Republicar": "Republish",
+    "📞 Llamar": "📞 Call", "No disponible con parejas fijas": "Not available with fixed pairs", "🔄 Republicar en Telegram": "🔄 Republish on Telegram", "Republicar": "Republish",
     "🔄 Enviado: en unos segundos se actualiza el canal": "🔄 Sent: the channel will update in a few seconds", "🌐 Web de inscripción": "🌐 Sign-up website", "📋 Copiar enlace": "📋 Copy link", "🔗 Enlace guardado": "🔗 Link saved", "🔗 Cambiar enlace": "🔗 Change link", "🔗 Poner enlace": "🔗 Set link",
     "Sin enlace: no saldrá el botón «Seguir en Telegram» en la web": "No link: the “Follow on Telegram” button won't show on the web",
     "Ese enlace no es de Telegram (debe empezar por https://t.me/)": "That is not a Telegram link (it must start with https://t.me/)",

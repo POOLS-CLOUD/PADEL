@@ -264,7 +264,7 @@ function poolFormHtml(px, v, boton){
 }
 function readPoolForm(px){
   const dep = $(px + "Dep").querySelector(".modo.on"), tipo = $(px + "Tipo").querySelector(".modo.on");
-  return {deporte: dep ? dep.dataset.dep : "padel", tipo_sorteo: tipo ? tipo.dataset.tipo : "mixto", club: $(px + "Club").value.trim() || null, parejas_fijas: $(px + "Fijas").checked,
+  return {deporte: dep ? dep.dataset.dep : "padel", tipo_sorteo: tipo && !(tipo.dataset.tipo === "aleatorio" && $(px + "Fijas").checked) ? tipo.dataset.tipo : "mixto", club: $(px + "Club").value.trim() || null, parejas_fijas: $(px + "Fijas").checked,
     fecha: $(px + "Date").value, titulo: $(px + "Title").value.trim(), horario: $(px + "Hor").value.trim(), importe: $(px + "Imp").value.trim(),
     notas: $(px + "Notas").value.trim() || null, max_jugadores: Math.max(1, Math.round(+$(px + "Pistas").value) || 5) * 4,   /* 4 plazas por pista */ max_reservas: Math.max(0, +$(px + "Res").value || 0)};
 }
@@ -274,7 +274,17 @@ function wirePoolForm(px){
   const pistas = $(px + "Pistas");
   if (pistas) pistas.onchange = pistas.oninput = () => { const n = Math.max(1, Math.round(+pistas.value) || 1); $(px + "Plazas").textContent = `(${n * 4} plazas)`; };
   const tipo = $(px + "Tipo");
-  if (tipo) tipo.querySelectorAll("[data-tipo]").forEach(b => b.onclick = () => { tipo.querySelectorAll(".modo").forEach(x => x.classList.toggle("on", x === b)); });
+  if (tipo) tipo.querySelectorAll("[data-tipo]").forEach(b => b.onclick = () => { if (b.disabled) return; tipo.querySelectorAll(".modo").forEach(x => x.classList.toggle("on", x === b)); });
+  // con parejas fijas no hay asignación aleatoria: el botón se desactiva (y si estaba elegido, pasa a mixto)
+  const fijas = $(px + "Fijas");
+  const ajustarFijas = () => {
+    const al = tipo && tipo.querySelector('[data-tipo="aleatorio"]'); if (!al) return;
+    const f = !!(fijas && fijas.checked);
+    al.disabled = f; al.style.opacity = f ? ".35" : ""; al.title = f ? "No disponible con parejas fijas" : "";
+    if (f && al.classList.contains("on")) { al.classList.remove("on"); tipo.querySelector('[data-tipo="mixto"]').classList.add("on"); }
+  };
+  if (fijas) fijas.addEventListener("change", ajustarFijas);
+  ajustarFijas();
   wireClubChips(px);
   const dt = $(px + "Date");
   if (dt) dt.onchange = () => { if (/^POOL\s|\sPOOL$/i.test($(px + "Title").value) && dt.value) $(px + "Title").value = poolTitle(dt.value); };

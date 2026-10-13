@@ -647,11 +647,13 @@ function vistaPool(){
     // dos columnas: cada fila es una pareja; en un hueco libre te puedes apuntar al lado de tu compañero
     const porPos = new Map(D.inscritos.filter(i => i.posicion != null).map(i => [i.posicion, i]));
     const puede = (p.estado === "abierta" || soloReservas) && desdeAqui < MAX_DISP;
+    const tipoP = p.tipo_sorteo || "mixto";
+    const ico = pos => tipoP === "chicos" ? "👨 " : tipoP === "chicas" ? "👩 " : tipoP === "mixto" ? (pos % 2 ? "👩 " : "👨 ") : "";
     const slot = pos => {
       const i = porPos.get(pos);
-      if (i) return h("div", {class: "slot"}, h("span", {class: "nm"}, i.nombre),
+      if (i) return h("div", {class: "slot"}, h("span", {class: "nm"}, ico(pos) + i.nombre),
         mine[i.id] ? h("span", {class: "acts"}, h("span", {class: "me"}, T().you), puedeBorrarA(i) ? h("button", {class: "del", type: "button", onclick: () => quitar(i)}, T().removeMe) : null) : null);
-      return puede && (!soloReservas || pos >= max) ? h("button", {class: "slotbtn", type: "button", onclick: () => abrirHueco(pos)}, T().joinHere) : h("div", {class: "slot libre"}, T().free);
+      return puede && (!soloReservas || pos >= max) ? h("button", {class: "slotbtn", type: "button", onclick: () => abrirHueco(pos)}, ico(pos) + T().joinHere) : h("div", {class: "slot libre"}, ico(pos) + T().free);
     };
     const filas = (desde, hasta, pref) => { const r = []; for (let k = desde; k < hasta; k += 2) r.push(h("div", {class: "pairrow"}, h("span", {class: "pl"}, pref + (Math.floor((k - desde) / 2) + 1)), slot(k), slot(k + 1))); return r; };
     main.append(h("section", {}, h("h2", {}, T().pairsTitle, h("small", {}, T().pairsSmall)),
