@@ -155,7 +155,7 @@ async function guardarAdmins(p, px, nuevo){
 async function nuevaSemana(p){
   const d = fromIso(p.fecha || isoDate(new Date())); d.setDate(d.getDate() + 7);
   const nf = isoDate(d), ini = cuantosIniciales();
-  if (!await ask(`🔁 ¿Crear el evento de la semana siguiente?\n\n«${p.titulo}» · 📅 ${fechaCorta(nf)}\n\nMismos datos, administradores y canal de Telegram. La lista empieza vacía y con la inscripción abierta. Este evento se queda como historial.`,
+  if (!await ask(`🔁 ¿Crear el evento de la semana siguiente?\n\n«${p.titulo}» · 🗓️ ${fechaCorta(nf)}\n\nMismos datos, administradores y canal de Telegram. La lista empieza vacía y con la inscripción abierta. Este evento se queda como historial.`,
     "Crear", ini ? `Apuntar ya a los jugadores iniciales (${ini})` : null)) return;
   const conIniciales = !!ini && $("modalCheck").checked;
   guard(async () => {
@@ -188,7 +188,7 @@ async function nuevaSemana(p){
 cloud.canales = null;
 const TG_FN = SUPABASE_URL + "/functions/v1/telegram";
 async function cargarCanales(){
-  try { const r = await cloud.sb.rpc("mis_canales"); cloud.canales = r.error ? null : (r.data || []); } catch(e) { cloud.canales = null; }
+  try { const r = await cloud.sb.rpc("mis_canales"); cloud.canales = r.error ? null : window.filtrarCanales ? filtrarCanales(r.data || []) : (r.data || []); } catch(e) { cloud.canales = null; }
   return cloud.canales;
 }
 const nombreCanal = id => ((cloud.canales || []).find(c => c.id === id) || {}).titulo || "";
@@ -199,7 +199,7 @@ async function nombreBot(){
 }
 // Ventana para vincular un canal nuevo: muestra el código y espera a que se publique en el canal
 async function vincularCanal(pool){
-  const r = await cloud.sb.rpc("codigo_telegram", {p_pool: pool ? pool.id : null});
+  const r = await cloud.sb.rpc("codigo_telegram", {p_pool: pool ? pool.id : null, ...(window.clubId && clubId() ? {p_club: clubId()} : {})});
   if (r.error) { toast(r.error.code === "PGRST202" ? "Falta ejecutar cambio_21_telegram.sql en Supabase" : "No se pudo crear el código: " + cloudError(r.error)); return null; }
   const codigo = r.data, bot = await nombreBot(), antes = new Set((cloud.canales || []).map(c => c.id));
   return new Promise(res => {
@@ -1060,7 +1060,7 @@ function renderMenu(box){
     ${cloud.creador ? `<button class="btn bigbtn" id="mPanel" style="border-color:#c9a227">👑 Panel del creador<small>Administradores y canales de Telegram</small></button>` : ""}
     <button class="btn bigbtn" id="mCrear">＋ Crear un nuevo evento<small>Fecha, horario, club, plazas y jugadores ya inscritos</small></button>
     <button class="btn ghost bigbtn" id="mPapelera" style="font-size:16px">🗑 Papelera<small>Eventos borrados: restaurarlos si fue un error</small></button>
-    ${seguir ? `<button class="btn ghost bigbtn" id="mSeguir" style="font-size:16px">↪ Continuar con «${esc(p.titulo)}»<small>📅 ${fechaCorta(p.fecha)}</small></button>` : ""}
+    ${seguir ? `<button class="btn ghost bigbtn" id="mSeguir" style="font-size:16px">↪ Continuar con «${esc(p.titulo)}»<small>🗓️ ${fechaCorta(p.fecha)}</small></button>` : ""}
     <p class="help" style="text-align:center;margin-top:18px">Conectado como ${esc(cloud.user.email || "")} · <a href="#" id="cLogout">Salir</a></p>
     ${cloud.creador ? `<p class="help" style="text-align:center;margin-top:4px">👑 Modo creador: puedes gestionar todos los eventos</p>` : ""}
     ${estadoAvisosHtml()}`;
@@ -1086,7 +1086,7 @@ async function renderPapelera(box){
   box.innerHTML = `<button class="btn small ghost" id="ppVolver" style="margin-bottom:10px">‹ Menú</button>
     ${l.length ? l.map(e => `<div class="card">
       <div style="font-weight:700">${esc(e.titulo || "Evento")}</div>
-      <div class="help" style="margin:2px 0 8px">${e.club_nombre ? `🏢 ${esc(e.club_nombre)} · ` : ""}📅 ${esc(fechaCorta(e.fecha))} · ${e.apuntados} apuntado(s) · borrado el ${esc(fh(e.borrado_at))}</div>
+      <div class="help" style="margin:2px 0 8px">${e.club_nombre ? `🏢 ${esc(e.club_nombre)} · ` : ""}🗓️ ${esc(fechaCorta(e.fecha))} · ${e.apuntados} apuntado(s) · borrado el ${esc(fh(e.borrado_at))}</div>
       <div class="row wrap"><button class="btn small primary" data-restaurar="${e.id}">↩ Restaurar</button><button class="btn small danger" data-vaciar="${e.id}">Borrar para siempre</button></div>
     </div>`).join("") : `<div class="card help">La papelera está vacía.</div>`}`;
   $("ppVolver").onclick = () => irA("menu");
@@ -1122,7 +1122,7 @@ function renderLista(box){
     return `<div class="card evrow">
       <div class="info" data-open="${x.id}">
         <div class="tt">${esc(x.titulo)}</div>
-        <div class="help" style="margin:2px 0 0">📅 ${fechaCorta(x.fecha)}${x.horario ? " · " + esc(x.horario) : ""} · ${n}/${x.max_jugadores} apuntados${x.repetir_semanal ? " · 🔁" : ""}</div>
+        <div class="help" style="margin:2px 0 0">🗓️ ${fechaCorta(x.fecha)}${x.horario ? " · " + esc(x.horario) : ""} · ${n}/${x.max_jugadores} apuntados${x.repetir_semanal ? " · 🔁" : ""}</div>
         ${x.oculto ? `<div style="color:#d32f2f;font-weight:800;font-size:12.5px;margin-top:2px">🔒 OCULTO · no sale en la web</div>` : ""}
         <div style="margin-top:6px"><span class="pill ${est[1]}">${est[0]}</span>${x.parejas_fijas ? ` <span class="pill">👫 Parejas fijas</span>` : x.tipo_sorteo && MODOS[x.tipo_sorteo] ? ` <span class="pill">${modoHtml(x.tipo_sorteo)}</span>` : ""}</div>
       </div>
@@ -1224,7 +1224,7 @@ function renderCloud(){
     const sinMarcar = lista.filter(i => !sx(i));
     html.push(`<div class="card">
       <div class="row" style="justify-content:space-between;align-items:flex-start"><div><div style="font-weight:700;font-size:17px">${esc(p.titulo)}</div>
-      ${p.fecha ? `<div style="font-weight:600;font-size:14px;margin-top:2px">📅 ${esc(fromIso(p.fecha).toLocaleDateString("es-ES", {day: "2-digit", month: "2-digit", year: "numeric"}))}</div>` : ""}
+      ${p.fecha ? `<div style="font-weight:600;font-size:14px;margin-top:2px">🗓️ ${esc(fromIso(p.fecha).toLocaleDateString("es-ES", {day: "2-digit", month: "2-digit", year: "numeric"}))}</div>` : ""}
       <div class="help" style="margin:2px 0 0">${esc([DEPORTES[p.deporte || "padel"], p.horario, importeTxt(p.importe)].filter(Boolean).join(" · "))} · código ${esc(p.codigo)}</div>
       ${p.club || p.ubicacion ? `<div class="help" style="margin:2px 0 0">📍 ${esc(p.club || "Ubicación")}${mapsUrl(p) ? ` · <a href="${esc(mapsUrl(p))}" target="_blank" rel="noopener">🗺 Ver en el mapa</a>` : ""}</div>` : ""}
       ${p.oculto || p.repetir_semanal ? `<div style="margin-top:4px">${p.oculto ? `<span class="pill" style="background:#d32f2f;color:#fff">🔒 Oculto</span> ` : ""}${p.repetir_semanal ? `<span class="pill">🔁 Cada semana</span>` : ""}</div>` : ""}</div>
@@ -1318,7 +1318,7 @@ function compartirEvento(p){
 }
 function shareText(p){
   const h = poolToHeader(p).split(String.fromCharCode(10));
-  const L = [h[0], p.fecha ? `📅 ${fechaCorta(p.fecha)}` : null, ...h.slice(1)].filter(Boolean);
+  const L = [h[0], p.fecha ? `🗓️ ${fechaCorta(p.fecha)}` : null, ...h.slice(1)].filter(Boolean);
   L.push("", `🎾 Apúntate aquí 👉 ${poolUrl(p)}`);
   return L.join("\n");
 }
