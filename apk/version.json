@@ -1,10 +1,10 @@
 {
-  "versionCode": 98,
-  "versionName": "3.29",
-  "url": "https://pools-cloud.github.io/SportEvents/apk/SportEventsManager-3.29.apk",
-  "notas": "Icono de fecha sin número (🗓️) · Web: «Copiar lista» sin el enlace del mapa (sin imagen de Google Maps en WhatsApp) y con enlaces con nombre en Telegram o correo",
+  "versionCode": 99,
+  "versionName": "3.30",
+  "url": "https://pools-cloud.github.io/SportEvents/apk/SportEventsManager-3.30.apk",
+  "notas": "Fijos de cada semana: al repetirse el evento se apuntan solos (botón «👥 Fijos cada semana») · El evento semanal conserva el mismo enlace",
   "anterior": {
-    "versionName": "3.28",
-    "url": "https://pools-cloud.github.io/SportEvents/apk/SportEventsManager-3.28.apk"
+    "versionName": "3.29",
+    "url": "https://pools-cloud.github.io/SportEvents/apk/SportEventsManager-3.29.apk"
   }
 }
