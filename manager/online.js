@@ -1081,11 +1081,12 @@ async function renderPapelera(box){
   const r = await cloud.sb.rpc("papelera_lista");
   if (cloud.vista !== "papelera") return;
   if (r.error) { box.innerHTML += `<div class="card">${esc(r.error.code === "PGRST202" ? "La papelera aún no está activada: falta ejecutar cambio_40_papelera_y_velocidad.sql en Supabase." : "No se pudo cargar: " + cloudError(r.error))}</div>`; return; }
-  const l = r.data || [], fh = t => new Date(t).toLocaleString("es-ES", {day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit"});
+  // la versión CLUB filtra por el club con el que se trabaja (y pone el nombre del club si hay varios)
+  const l = window.filtrarPapelera ? filtrarPapelera(r.data || []) : (r.data || []), fh = t => new Date(t).toLocaleString("es-ES", {day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit"});
   box.innerHTML = `<button class="btn small ghost" id="ppVolver" style="margin-bottom:10px">‹ Menú</button>
     ${l.length ? l.map(e => `<div class="card">
       <div style="font-weight:700">${esc(e.titulo || "Evento")}</div>
-      <div class="help" style="margin:2px 0 8px">📅 ${esc(fechaCorta(e.fecha))} · ${e.apuntados} apuntado(s) · borrado el ${esc(fh(e.borrado_at))}</div>
+      <div class="help" style="margin:2px 0 8px">${e.club_nombre ? `🏢 ${esc(e.club_nombre)} · ` : ""}📅 ${esc(fechaCorta(e.fecha))} · ${e.apuntados} apuntado(s) · borrado el ${esc(fh(e.borrado_at))}</div>
       <div class="row wrap"><button class="btn small primary" data-restaurar="${e.id}">↩ Restaurar</button><button class="btn small danger" data-vaciar="${e.id}">Borrar para siempre</button></div>
     </div>`).join("") : `<div class="card help">La papelera está vacía.</div>`}`;
   $("ppVolver").onclick = () => irA("menu");
@@ -1098,6 +1099,7 @@ async function renderPapelera(box){
         : /CODIGO_EN_USO|YA_EXISTE/.test(m) ? "Ese evento ya existe (o su enlace está en uso)" : "No se pudo restaurar: " + cloudError(rr.error));
       return;
     }
+    if (window.antesDeRecargarRestaurado) await antesDeRecargarRestaurado(rr.data);   // CLUB: si es de otro club, se cambia a ese
     await loadPools();
     const p = cloud.pools.find(x => x.id === rr.data);
     if (p) { await selectPool(p); cloud.vista = "evento"; }
